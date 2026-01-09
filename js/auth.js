@@ -86,6 +86,26 @@ function renderDynamicFields(role) {
             <option value="106">ECE (106)</option>
         </select>
       </div>
+      <div style="display:flex; gap:1rem;">
+          <div class="form-group" style="flex:1;">
+            <label>Year</label>
+            <select id="regYear" required class="form-control">
+                <option value="" disabled selected>Select</option>
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+                <option value="3">3rd Year</option>
+                <option value="4">4th Year</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Semester</label>
+            <select id="regSem" required class="form-control">
+                <option value="" disabled selected>Select</option>
+                <option value="1">Sem 1</option>
+                <option value="2">Sem 2</option>
+            </select>
+          </div>
+      </div>
     `;
     } else if (role === 'department') {
         html += `
@@ -171,6 +191,12 @@ async function handleRegisterForm(e) {
         if (selectedRole === 'student') {
             profile.regNum = document.getElementById('regId').value;
             profile.department = document.getElementById('regDept').value;
+            profile.year = document.getElementById('regYear').value;
+            profile.semester = document.getElementById('regSem').value;
+            // Default Session? Maybe leave blank or derive?
+            // User doesn't select session in public form usually? 
+            // We can leave session blank or 'Pending Allocation' until approval/dept assigns it.
+            profile.session = 'Pending';
         } else if (selectedRole === 'department') {
             profile.deptId = document.getElementById('regId').value;
             profile.session = document.getElementById('regSession').value;
