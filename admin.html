@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .dashboard-grid {
             display: grid;
@@ -61,6 +62,9 @@
             align-items: center;
             box-shadow: var(--shadow-sm);
             margin-bottom: 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .profile-menu {
@@ -97,6 +101,7 @@
             align-items: center;
             gap: 1rem;
             flex: 1;
+            min-width: 200px;
         }
 
         .stat-icon {
@@ -185,6 +190,52 @@
             color: var(--primary);
             font-weight: 600;
         }
+
+        /* Search Bar */
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: var(--neutral-100);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            border: 1px solid var(--neutral-300);
+            width: 300px;
+        }
+
+        .search-bar input {
+            border: none;
+            background: transparent;
+            outline: none;
+            margin-left: 0.5rem;
+            width: 100%;
+        }
+
+        /* Chart Canvas */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        /* Activity Feed */
+        .activity-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e0f2fe;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
     </style>
 </head>
 
@@ -197,6 +248,10 @@
             <ul class="sidebar-menu">
                 <li><a href="#" class="sidebar-link active" onclick="switchTab('dashboard', this)"><i
                             class="ri-dashboard-3-line"></i> Dashboard</a></li>
+                <li><a href="#" class="sidebar-link" onclick="switchTab('analytics', this)"><i
+                            class="ri-bar-chart-grouped-line"></i> Analytics</a></li>
+                <li><a href="#" class="sidebar-link" onclick="switchTab('feedback', this)"><i
+                            class="ri-feedback-line"></i> Feedback</a></li>
                 <li><a href="#" class="sidebar-link" onclick="switchTab('approvals', this)"><i
                             class="ri-user-follow-line"></i> Approvals</a></li>
                 <li><a href="#" class="sidebar-link" onclick="switchTab('students', this)"><i class="ri-group-line"></i>
@@ -217,6 +272,13 @@
             <!-- Top Bar -->
             <div class="top-bar">
                 <h2 id="pageTitle">Overview</h2>
+
+                <div class="search-bar">
+                    <i class="ri-search-line" style="color: var(--neutral-500);"></i>
+                    <input type="text" id="globalSearch" placeholder="Search users..."
+                        onkeyup="handleGlobalSearch(this.value)">
+                </div>
+
                 <div class="profile-menu">
                     <div style="text-align: right;">
                         <div style="font-weight: 600;">Admin User</div>
@@ -261,9 +323,72 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Recent Activity & Quick Actions -->
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                        <div class="card">
+                            <h3><i class="ri-history-line"></i> Recent Activity</h3>
+                            <div id="activity-feed">
+                                <!-- Dynamic Content -->
+                                <p style="color:#666; margin-top:1rem;">Loading activity...</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3><i class="ri-flashlight-line"></i> Quick Actions</h3>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+                                <button class="btn btn-outline" style="justify-content: start;"
+                                    onclick="switchTab('students', document.querySelectorAll('.sidebar-link')[4])">
+                                    <i class="ri-user-add-line"></i> Add New Student
+                                </button>
+                                <button class="btn btn-outline" style="justify-content: start;"
+                                    onclick="switchTab('approvals', document.querySelectorAll('.sidebar-link')[3])">
+                                    <i class="ri-user-follow-line"></i> Review Approvals
+                                </button>
+                                <button class="btn btn-outline" style="justify-content: start;"
+                                    onclick="downloadSample()">
+                                    <i class="ri-file-download-line"></i> Download CSV Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
-                <!-- 2. APPROVALS TAB -->
+                <!-- 2. ANALYTICS TAB -->
+                <section id="tab-analytics" class="tab-section">
+                    <div class="stats-row">
+                        <div class="card" style="flex:2;">
+                            <h3>Department Performance</h3>
+                            <div class="chart-container">
+                                <canvas id="deptChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card" style="flex:1;">
+                            <h3>Participation Rate</h3>
+                            <div class="chart-container">
+                                <canvas id="participationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. FEEDBACK TAB -->
+                <section id="tab-feedback" class="tab-section">
+                    <div class="card">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <h3>All Feedback</h3>
+                            <select id="feedbackFilter" onchange="loadFeedbackExplorer()"
+                                style="padding:0.5rem; border-radius:0.5rem; border:1px solid #ccc;">
+                                <option value="all">All Feedback</option>
+                                <option value="low">Low Ratings (< 3 Stars)</option>
+                                <option value="high">High Ratings (> 4 Stars)</option>
+                            </select>
+                        </div>
+                        <div id="feedback-explorer-container">Loading...</div>
+                    </div>
+                </section>
+
+                <!-- 4. APPROVALS TAB -->
                 <section id="tab-approvals" class="tab-section">
                     <div class="card">
                         <h3>Pending Requests</h3>
@@ -273,13 +398,11 @@
                             <div class="sub-tab" onclick="filterApprovals('teacher', this)">Teachers</div>
                             <div class="sub-tab" onclick="filterApprovals('department', this)">Departments</div>
                         </div>
-                        <div id="approvals-list-container">
-                            <!-- Dynamic List -->
-                        </div>
+                        <div id="approvals-list-container"></div>
                     </div>
                 </section>
 
-                <!-- 3. STUDENTS TAB -->
+                <!-- 5. STUDENTS TAB -->
                 <section id="tab-students" class="tab-section">
                     <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
                         <div class="card" style="flex: 1;">
@@ -314,7 +437,7 @@
                     </div>
                 </section>
 
-                <!-- 4. TEACHERS TAB -->
+                <!-- 6. TEACHERS TAB -->
                 <section id="tab-teachers" class="tab-section">
                     <div class="card">
                         <h3>Registered Teachers</h3>
@@ -322,7 +445,7 @@
                     </div>
                 </section>
 
-                <!-- 5. DEPARTMENTS TAB -->
+                <!-- 7. DEPARTMENTS TAB -->
                 <section id="tab-departments" class="tab-section">
                     <div class="card">
                         <h3>Registered Departments</h3>
@@ -330,7 +453,7 @@
                     </div>
                 </section>
 
-                <!-- 6. PROFILE TAB -->
+                <!-- 8. PROFILE TAB -->
                 <section id="tab-profile" class="tab-section">
                     <div class="card">
                         <h3>Admin Profile</h3>
@@ -350,7 +473,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="js/firebase.js"></script>
     <script src="js/auth.js"></script>
-    <script src="js/admin.js"></script> <!-- Moved logic here -->
+    <script src="js/admin.js"></script>
     <script>
         checkAuth('admin');
     </script>
