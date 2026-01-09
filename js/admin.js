@@ -29,10 +29,12 @@ function switchTab(tabName, linkEl) {
 
     if (tabName === 'dashboard') { loadStats(); loadActivityFeed(); }
     if (tabName === 'analytics') loadAnalytics();
-    if (tabName === 'approvals') loadApprovals(); // RELOAD APPROVALS ON TAB SWITCH
+    if (tabName === 'feedback') loadFeedbackExplorer();
+    if (tabName === 'approvals') loadApprovals();
     if (tabName === 'students') loadUserTable('student', 'students-table-container');
     if (tabName === 'teachers') loadUserTable('teacher', 'teachers-table-container');
     if (tabName === 'departments') loadUserTable('department', 'depts-table-container');
+    if (tabName === 'profile') loadProfile();
 }
 
 // --- 1. Real-time Stats & Activity ---
@@ -54,7 +56,6 @@ function loadStats() {
         document.getElementById('count-pending').innerText = pending;
     });
 }
-
 function loadActivityFeed() {
     const feed = document.getElementById('activity-feed');
     db.collection('users').orderBy('createdAt', 'desc').limit(5).get().then(snap => {
@@ -143,14 +144,14 @@ function loadUserTable(role, containerId) {
         }
         if (role === 'teacher') {
             allTeachers = users;
-            updateDeptDropdown(users); // Teacher Filter
+            updateDeptDropdown(users);
             filterTeacherList();
         }
         if (role === 'department') renderUserTable(users, role, container);
     });
 }
 
-// Update Filters
+// Filters
 function updateStudentDeptDropdown(students) {
     const depts = [...new Set(students.map(s => s.department || 'General'))];
     const sel = document.getElementById('studentDeptFilter');
@@ -165,7 +166,6 @@ function filterStudentList() {
     if (filter === 'all') renderUserTable(allStudents, 'student', container);
     else renderUserTable(allStudents.filter(s => (s.department || 'General') === filter), 'student', container);
 }
-
 function updateDeptDropdown(teachers) {
     const depts = [...new Set(teachers.map(t => t.department || 'General'))];
     const sel = document.getElementById('teacherDeptFilter');
@@ -181,7 +181,6 @@ function filterTeacherList() {
     else renderUserTable(allTeachers.filter(t => (t.department || 'General') === filter), 'teacher', container);
 }
 
-// Render Table
 function renderUserTable(users, role, container) {
     if (users.length === 0) { container.innerHTML = "No users found."; return; }
 
@@ -214,21 +213,26 @@ function renderUserTable(users, role, container) {
     container.innerHTML = html;
 }
 
-// Review Toggle
 window.toggleReviewStatus = async (uid, isOpen) => {
     try { await db.collection('users').doc(uid).update({ isReviewOpen: isOpen }); }
     catch (e) { console.error(e); }
 };
 
-// --- HELPER: Create User in Secondary App ---
+// Global Search
+function handleGlobalSearch(query) {
+    const term = query.toLowerCase();
+    if (document.getElementById('tab-students').classList.contains('active')) {
+        renderUserTable(allStudents.filter(u => u.name.toLowerCase().includes(term) || u.email.includes(term)), 'student', document.getElementById('students-table-container'));
+    }
+}
+
+// --- 4. Add User & Bulk Upload (Secondary App) ---
+
 async function createUserInSecondaryApp(email, password) {
-    // 1. Initialize Secondary App
     const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
     try {
-        // 2. Create User
         const userCred = await secondaryApp.auth().createUserWithEmailAndPassword(email, password);
         const uid = userCred.user.uid;
-        // 3. Delete App to avoid cleanup issues
         await secondaryApp.delete();
         return uid;
     } catch (err) {
@@ -237,9 +241,6 @@ async function createUserInSecondaryApp(email, password) {
     }
 }
 
-// --- 4. Add User & Bulk Upload Logic (UPDATED) ---
-
-// STUDENT
 async function handleAddSingleStudent(e) {
     e.preventDefault();
     const reg = document.getElementById('addRegNum').value;
@@ -251,13 +252,11 @@ async function handleAddSingleStudent(e) {
 
     try {
         const uid = await createUserInSecondaryApp(email, pass);
-        // Create Doc
         await db.collection('users').doc(uid).set({
             uid: uid, name: name, email: email, role: 'student', status: 'approved',
             regNum: reg, department: dept, session: session, createdAt: new Date()
         });
-        alert(`Student Created!\nEmail: ${email}\nUID: ${uid}`);
-        e.target.reset();
+        alert(`Student Created!\nEmail: ${email}\nUID: ${uid}`); e.target.reset();
     } catch (err) { console.error(err); alert("Error: " + err.message); }
 }
 
@@ -271,7 +270,6 @@ async function handleBulkUpload() {
         complete: async function (results) {
             let count = 0;
             document.getElementById('uploadStatus').innerText = `Processing ${results.data.length} rows...`;
-
             for (let row of results.data) {
                 if (row.student_id && row.password) {
                     try {
@@ -309,8 +307,7 @@ async function handleAddSingleTeacher(e) {
             uid: uid, name: name, email: email, role: 'teacher', status: 'approved',
             department: dept, isReviewOpen: false, createdAt: new Date()
         });
-        alert(`Teacher Created!`);
-        e.target.reset();
+        alert(`Teacher Created!`); e.target.reset();
     } catch (err) { alert("Error: " + err.message); }
 }
 
@@ -338,6 +335,7 @@ async function handleBulkTeacherUpload() {
         }
     });
 }
+
 function downloadTeacherSample() {
     const csvContent = "data:text/csv;charset=utf-8," + "name,email,department,password\nDr. Smith,smith@clg.edu,CSE,securepass";
     const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = "teacher_full_import.csv"; document.body.appendChild(link); link.click();
@@ -362,12 +360,10 @@ async function handleAddSingleDept(e) {
     } catch (e) { alert("Error: " + e.message); }
 }
 
-
-// --- Approvals (FIXED) ---
+// --- Approvals ---
 function loadApprovals() {
     const listContainer = document.getElementById('approvals-list-container');
     listContainer.innerHTML = 'Loading...';
-    // Fix: Clear array to prevent dupes if called multiple times
     db.collection('users').where('status', '==', 'pending').onSnapshot(snap => {
         allPendingUsers = [];
         snap.forEach(doc => allPendingUsers.push({ id: doc.id, ...doc.data() }));
@@ -382,11 +378,9 @@ function filterApprovals(role, tabEl) {
 function renderApprovals(filterRole) {
     const container = document.getElementById('approvals-list-container');
     const filtered = filterRole === 'all' ? allPendingUsers : allPendingUsers.filter(u => u.role === filterRole);
-
     if (filtered.length === 0) { container.innerHTML = `<p style="padding:1rem;">No pending requests for ${filterRole}.</p>`; return; }
     let html = '<table class="w-full"><thead><tr><th>Name</th><th>Role</th><th>Info</th><th>Actions</th></tr></thead><tbody>';
     filtered.forEach(u => {
-        // Ensure buttons have correct ID
         html += `<tr>
             <td><strong>${u.name}</strong><br><small>${u.email}</small></td>
             <td><span class="pill pill-pending">${u.role.toUpperCase()}</span></td>
@@ -400,8 +394,6 @@ function renderApprovals(filterRole) {
     html += '</tbody></table>';
     container.innerHTML = html;
 }
-
-// EXPOSE TO WINDOW FOR ONCLICK TO WORK
 window.approveUser = async (uid) => {
     try { await db.collection('users').doc(uid).update({ status: 'approved' }); } catch (e) { console.error(e); }
 };
@@ -410,10 +402,47 @@ window.rejectUser = async (uid) => {
     try { await db.collection('users').doc(uid).delete(); } catch (e) { console.error(e); }
 };
 
+// --- 5. Profile Logic ---
+async function loadProfile() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    // Auth
+    document.getElementById('profile-email').innerText = user.email;
+    document.getElementById('profile-uid').innerText = user.uid;
+    if (user.metadata) {
+        document.getElementById('profile-joined').innerText = new Date(user.metadata.creationTime).toLocaleDateString();
+        document.getElementById('profile-last-login').innerText = new Date(user.metadata.lastSignInTime).toLocaleString();
+    }
+    // Firestore
+    try {
+        const doc = await db.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+            const data = doc.data();
+            const name = data.name || "Admin User";
+            document.getElementById('profile-name').innerText = name;
+            document.getElementById('profile-role').innerText = (data.role || 'ADMIN').toUpperCase();
+            document.getElementById('profile-status').innerText = (data.status || 'Active');
+
+            // Avatar
+            const initial = name.charAt(0);
+            document.getElementById('profile-avatar').src = `https://ui-avatars.com/api/?name=${initial}&background=0D8ABC&color=fff&size=128`;
+            if (document.getElementById('editProfileName')) document.getElementById('editProfileName').value = name;
+        }
+    } catch (err) { console.error("Profile Load Error", err); }
+}
+
+async function handleUpdateProfile(e) {
+    e.preventDefault();
+    const newName = document.getElementById('editProfileName').value;
+    const user = firebase.auth().currentUser;
+    try {
+        await db.collection('users').doc(user.uid).update({ name: newName });
+        document.getElementById('profile-name').innerText = newName;
+        document.getElementById('profile-avatar').src = `https://ui-avatars.com/api/?name=${newName.charAt(0)}&background=0D8ABC&color=fff&size=128`;
+        alert("Profile Updated!");
+    } catch (err) { console.error(err); alert("Error updating profile."); }
+}
+
 // Init
-document.addEventListener('DOMContentLoaded', () => {
-    loadStats();
-    loadActivityFeed();
-    loadProfile();
-});
-function loadProfile() { const u = firebase.auth().currentUser; if (u && document.getElementById('profile-email')) document.getElementById('profile-email').innerText = u.email; }
+document.addEventListener('DOMContentLoaded', () => { loadStats(); loadActivityFeed(); loadProfile(); });
+function loadFeedbackExplorer() { /* ... */ }

@@ -571,11 +571,69 @@
                     </div>
                 </section>
 
-                <!-- 8. PROFILE TAB -->
+                <!-- 8. PROFILE TAB (NEW DETAIL VIEW) -->
                 <section id="tab-profile" class="tab-section">
-                    <div class="card">
-                        <h3>Admin Profile</h3>
-                        <p>Current User: <strong id="profile-email">Fetching...</strong></p>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+                        <!-- Identity Card -->
+                        <div class="card" style="text-align: center;">
+                            <img src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff&size=128"
+                                id="profile-avatar"
+                                style="width: 120px; height: 120px; border-radius: 50%; margin-bottom: 1rem; border: 4px solid var(--primary-light);">
+                            <h2 id="profile-name" style="margin-bottom: 0.5rem;">Loading...</h2>
+                            <span class="pill pill-approved" id="profile-role">ADMIN</span>
+                            <div style="margin-top: 2rem; text-align: left;">
+                                <p style="margin-bottom: 0.5rem;"><i class="ri-mail-line"
+                                        style="margin-right: 0.5rem; color: var(--primary);"></i> <span
+                                        id="profile-email">--</span></p>
+                                <p style="margin-bottom: 0.5rem;"><i class="ri-shield-user-line"
+                                        style="margin-right: 0.5rem; color: var(--primary);"></i> Status: <span
+                                        id="profile-status" style="font-weight: 600; color: #16a34a;">Active</span></p>
+                            </div>
+                        </div>
+
+                        <!-- Details Card -->
+                        <div class="card">
+                            <h3><i class="ri-user-settings-line"></i> Account Details</h3>
+                            <div style="margin-top: 1.5rem; display: grid; gap: 1.5rem;">
+                                <div
+                                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
+                                    <div>
+                                        <small style="color: #666; display: block; margin-bottom: 0.25rem;">User ID
+                                            (UID)</small>
+                                        <code id="profile-uid"
+                                            style="background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 4px;">--</code>
+                                    </div>
+                                    <div>
+                                        <small
+                                            style="color: #666; display: block; margin-bottom: 0.25rem;">Department</small>
+                                        <strong id="profile-dept">Administration</strong>
+                                    </div>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div>
+                                        <small style="color: #666; display: block; margin-bottom: 0.25rem;">Member
+                                            Since</small>
+                                        <strong id="profile-joined">--</strong>
+                                    </div>
+                                    <div>
+                                        <small style="color: #666; display: block; margin-bottom: 0.25rem;">Last
+                                            Login</small>
+                                        <strong id="profile-last-login">Just Now</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #eee;">
+                                <h3>Update Info</h3>
+                                <form onsubmit="handleUpdateProfile(event)"
+                                    style="margin-top: 1rem; display: grid; gap: 1rem;">
+                                    <input type="text" id="editProfileName" placeholder="Update Display Name"
+                                        style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                    <button class="btn btn-primary" style="width: fit-content;">Save Changes</button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
