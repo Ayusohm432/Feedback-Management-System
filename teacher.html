@@ -1,15 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
 
-<!DOCTYPE html><html><body>
-<h2>Teacher Dashboard</h2>
-<div id="d"></div>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="js/firebase.js"></script>
-<script>
-db.collection("feedback").onSnapshot(s=>{
- let h="";
- s.forEach(x=>{let f=x.data();h+=f.subject+" : "+f.rating+"<br>";});
- d.innerHTML=h;
-});
-</script>
-</body></html>
+<head>
+    <meta charset="UTF-8">
+    <title>Teacher Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="container" style="padding-top: 2rem;">
+        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h1>My Performance</h1>
+            <button class="btn btn-outline" onclick="logout()">Logout</button>
+        </header>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+            <!-- Main Chart -->
+            <div class="card">
+                <h3>Feedback Trends</h3>
+                <canvas id="ratingsChart"></canvas>
+            </div>
+
+            <!-- Recent Comments -->
+            <div class="card">
+                <h3>Recent Comments</h3>
+                <div id="comments-list" style="margin-top: 1rem; max-height: 400px; overflow-y: auto;">
+                    <!-- Dynamic Content -->
+                    <p style="color: var(--neutral-700); font-style: italic;">Loading comments...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        checkAuth('teacher');
+
+        // Chart Setup
+        const ctx = document.getElementById('ratingsChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+                datasets: [{
+                    label: 'Average Rating',
+                    data: [3.5, 3.8, 4.0, 4.2, 4.5],
+                    borderColor: 'hsl(220, 70%, 50%)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, max: 5 }
+                }
+            }
+        });
+
+        // Load Real Data
+        const teacherId = "T01"; // Mock ID for demo
+        db.collection("feedback").where("teacher_id", "==", teacherId).limit(10).onSnapshot(snap => {
+            const list = document.getElementById("comments-list");
+            list.innerHTML = "";
+            if (snap.empty) { list.innerHTML = "No feedback yet."; return; }
+
+            snap.forEach(doc => {
+                const data = doc.data();
+                const div = document.createElement("div");
+                div.style.padding = "0.5rem";
+                div.style.borderBottom = "1px solid var(--neutral-300)";
+                div.innerHTML = `<strong>${data.rating}/5</strong> <span style="color: #666">${data.subject}</span><br>${data.comments}`;
+                list.appendChild(div);
+            });
+        });
+    </script>
+</body>
+
+</html>

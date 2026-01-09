@@ -1,11 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
 
-<!DOCTYPE html><html><body>
-<h2>Department Dashboard</h2>
-<div id="s"></div>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="js/firebase.js"></script>
-<script>
-db.collection("feedback").get().then(q=>s.innerText="Total Feedback: "+q.size);
-</script>
-</body></html>
+<head>
+    <meta charset="UTF-8">
+    <title>Department Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        .dashboard-layout {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-layout">
+        <div class="header-bar">
+            <div>
+                <h1>Department Portal</h1>
+                <p style="color: var(--neutral-700)">CSE Department</p>
+            </div>
+            <button class="btn btn-outline" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="grid-3">
+            <!-- Quick Stats -->
+            <div class="card">
+                <h3>Department Stats</h3>
+                <div style="margin-top: 1rem; font-size: 2rem; font-weight: bold; color: var(--primary);">4.2/5.0</div>
+                <p>Average Feedback Rating</p>
+            </div>
+
+            <div class="card">
+                <h3>Active Faculty</h3>
+                <div style="margin-top: 1rem; font-size: 2rem; font-weight: bold; color: var(--secondary);">12</div>
+                <p>Teachers Evaluated</p>
+            </div>
+
+            <div class="card">
+                <h3>Pending Reviews</h3>
+                <div style="margin-top: 1rem; font-size: 2rem; font-weight: bold; color: var(--accent);">340</div>
+                <p>Student Submissions</p>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 2rem;">
+            <h3><i class="ri-file-user-line"></i> Manage Students</h3>
+            <p>Departments can also register students directly.</p>
+            <!-- Reuse similar logic to Admin or link execution -->
+            <button class="btn btn-primary" style="margin-top: 1rem;" onclick="location.href='admin.html'">Go to Admin
+                Tools (Shared)</button>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        checkAuth('department');
+    </script>
+</body>
+
+</html>

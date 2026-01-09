@@ -1,14 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
 
-<!DOCTYPE html><html><body>
-<h2>Admin Dashboard</h2>
-<button onclick="add()">Add Student</button>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="js/firebase.js"></script>
-<script>
-function add(){
- db.collection("students").add({id:"S1",name:"Demo",dept:"CSE"});
- alert("Added");
-}
-</script>
-</body></html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Feedback System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: var(--neutral-900);
+            color: white;
+            padding: 2rem;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            margin-top: 2rem;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 1rem;
+        }
+
+        .sidebar-link {
+            color: var(--neutral-300);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            border-radius: var(--radius-md);
+            transition: background 0.2s;
+        }
+
+        .sidebar-link:hover,
+        .sidebar-link.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .main-content {
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-light);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="dashboard-grid">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h2>FMS Admin</h2>
+            <ul class="sidebar-menu">
+                <li><a href="#" class="sidebar-link active"><i class="ri-dashboard-line"></i> Dashboard</a></li>
+                <li><a href="#" class="sidebar-link"><i class="ri-user-add-line"></i> Students</a></li>
+                <li><a href="#" class="sidebar-link"><i class="ri-user-star-line"></i> Teachers</a></li>
+                <li><a href="#" class="sidebar-link"><i class="ri-building-line"></i> Departments</a></li>
+                <li><a href="#" class="sidebar-link" onclick="logout()"><i class="ri-logout-box-line"></i> Logout</a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h1>Overview</h1>
+                <div class="user-profile">
+                    <span>Welcome, Admin</span>
+                </div>
+            </header>
+
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="ri-group-line"></i></div>
+                    <div>
+                        <h3>1,250</h3>
+                        <p>Total Students</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="ri-user-tie-line"></i></div>
+                    <div>
+                        <h3>85</h3>
+                        <p>Teachers</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="ri-feedback-line"></i></div>
+                    <div>
+                        <h3>3,420</h3>
+                        <p>Feedbacks</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Area -->
+            <section>
+                <div class="card" style="margin-bottom: 2rem;">
+                    <h2><i class="ri-upload-cloud-2-line"></i> Bulk Student Registration</h2>
+                    <p style="color: var(--neutral-700); margin-bottom: 1rem;">Upload a CSV or Excel file to register
+                        students in bulk. Required columns:
+                        <code>student_id, student_name, department, semester, email</code></p>
+
+                    <input type="file" id="csvFile" accept=".csv, .xlsx" style="margin-bottom: 1rem;">
+                    <button class="btn btn-primary" onclick="handleBulkUpload()">Upload Data</button>
+                    <div id="uploadStatus" style="margin-top: 1rem;"></div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Auth Check
+        checkAuth('admin');
+
+        // Bulk Upload Logic
+        async function handleBulkUpload() {
+            const fileInput = document.getElementById('csvFile');
+            const statusDiv = document.getElementById('uploadStatus');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Please select a file first.");
+                return;
+            }
+
+            statusDiv.innerHTML = "Processing...";
+
+            if (file.name.endsWith('.csv')) {
+                Papa.parse(file, {
+                    header: true,
+                    complete: function (results) {
+                        processData(results.data);
+                    }
+                });
+            } else if (file.name.endsWith('.xlsx')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    processData(jsonData);
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                alert("Unsupported file format.");
+            }
+
+            async function processData(data) {
+                console.log("Raw Data:", data);
+                let successCount = 0;
+
+                // Batch write to Firestore
+                const batch = db.batch();
+                let counter = 0;
+
+                data.forEach((row) => {
+                    if (row.student_id && row.student_name) {
+                        const docRef = db.collection("students").doc(row.student_id.toString());
+                        batch.set(docRef, {
+                            student_id: row.student_id,
+                            student_name: row.student_name,
+                            department: row.department || 'N/A',
+                            semester: row.semester || 1,
+                            email: row.email || '',
+                            has_submitted: false
+                        });
+                        counter++;
+                        successCount++;
+                    }
+                });
+
+                try {
+                    if (counter > 0) {
+                        await batch.commit();
+                        statusDiv.innerHTML = `<span style="color: green;">Successfully uploaded ${successCount} students!</span>`;
+                        alert(`Uploaded ${successCount} records.`);
+                    } else {
+                        statusDiv.innerHTML = "No valid data found.";
+                    }
+                } catch (e) {
+                    console.error(e);
+                    statusDiv.innerHTML = `<span style="color: red;">Error: ${e.message}</span>`;
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

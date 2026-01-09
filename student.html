@@ -1,25 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
 
-<!DOCTYPE html><html><body>
-<h2>Student Dashboard</h2>
-<form id="f">
-<input id="subject" placeholder="Subject"><br>
-<input id="teacher" placeholder="Teacher"><br>
-<select id="rating"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select><br>
-<textarea id="comments"></textarea><br>
-<button>Submit</button>
-</form>
+<head>
+    <meta charset="UTF-8">
+    <title>Student Feedback Portal</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="js/firebase.js"></script>
-<script>
-f.onsubmit=async e=>{
- e.preventDefault();
- await db.collection("feedback").add({
-  subject:subject.value,teacher:teacher.value,
-  rating:rating.value,comments:comments.value
- });
- alert("Submitted");
-}
-</script>
-</body></html>
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--neutral-300);
+            border-radius: var(--radius-md);
+            font-family: inherit;
+        }
+
+        .rating-options {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .rating-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--neutral-300);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .rating-btn.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" style="max-width: 800px; padding: 2rem 0;">
+        <h1>Submit Feedback</h1>
+
+        <div class="card" style="margin-top: 2rem;">
+            <form id="feedbackForm">
+                <div class="form-group">
+                    <label>Subject Code / Name</label>
+                    <input type="text" id="subject" placeholder="e.g. CS101 Data Structures" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Teacher</label>
+                    <select id="teacher_select" required>
+                        <option value="">Select Teacher...</option>
+                        <option value="T01">Dr. Smith (Demo)</option>
+                        <option value="T02">Prof. Johnson</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Rating (1-5)</label>
+                    <div class="rating-options" id="ratingContainer">
+                        <div class="rating-btn" onclick="setRating(1)">1</div>
+                        <div class="rating-btn" onclick="setRating(2)">2</div>
+                        <div class="rating-btn" onclick="setRating(3)">3</div>
+                        <div class="rating-btn" onclick="setRating(4)">4</div>
+                        <div class="rating-btn" onclick="setRating(5)">5</div>
+                    </div>
+                    <input type="hidden" id="ratingValue" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Comments</label>
+                    <textarea id="comments" rows="4" placeholder="Share your honest feedback..."></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Feedback</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="js/firebase.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        checkAuth('student');
+
+        function setRating(val) {
+            document.getElementById('ratingValue').value = val;
+            document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
+            document.querySelectorAll('.rating-btn')[val - 1].classList.add('selected');
+        }
+
+        document.getElementById('feedbackForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const rating = document.getElementById('ratingValue').value;
+            if (!rating) return alert("Please select a rating.");
+
+            const data = {
+                subject: document.getElementById('subject').value,
+                teacher_id: document.getElementById('teacher_select').value,
+                rating: parseInt(rating),
+                comments: document.getElementById('comments').value,
+                department: 'CSE', // Mock
+                submitted_at: new Date()
+            };
+
+            try {
+                await db.collection("feedback").add(data);
+                alert("Feedback Submitted Successfully!");
+                window.location.reload();
+            } catch (err) {
+                console.error(err);
+                alert("Error submitting feedback.");
+            }
+        };
+    </script>
+</body>
+
+</html>
