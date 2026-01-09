@@ -280,8 +280,10 @@ function checkAuth(requiredRole) {
 }
 
 function logout() {
-    firebase.auth().signOut().then(() => {
-        localStorage.removeItem("fms_role");
-        window.location.href = "index.html";
-    });
+    if (confirm("Are you sure you want to logout?")) {
+        firebase.auth().signOut().then(() => {
+            localStorage.removeItem("fms_role");
+            window.location.href = "index.html";
+        });
+    }
 }
