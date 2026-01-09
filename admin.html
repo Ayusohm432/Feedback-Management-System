@@ -380,13 +380,14 @@
                         onkeyup="handleGlobalSearch(this.value)">
                 </div>
 
-                <div class="profile-menu">
+                <div class="profile-menu"
+                    onclick="switchTab('profile', document.querySelector('.sidebar-menu a[onclick*=\'profile\']'))">
                     <div style="text-align: right;">
-                        <div style="font-weight: 600;">Admin User</div>
-                        <small style="color: var(--neutral-700);">admin@fms.local</small>
+                        <div style="font-weight: 600;" id="top-bar-name">Admin User</div>
+                        <small style="color: var(--neutral-700);" id="top-bar-email">admin@fms.local</small>
                     </div>
                     <img src="https://ui-avatars.com/api/?name=Admin+User&background=0D8ABC&color=fff"
-                        class="profile-img" alt="Profile">
+                        class="profile-img" alt="Profile" id="top-bar-avatar">
                 </div>
             </div>
 
@@ -548,7 +549,8 @@
                         <div class="card" style="flex: 1;">
                             <h3><i class="ri-file-excel-2-line"></i> Bulk Upload (Full Accounts)</h3>
                             <p style="font-size: 0.9em; margin-bottom: 0.5rem;">Cols:
-                                <code>student_id, name, department, session, password</code></p>
+                                <code>student_id, name, department, session, password</code>
+                            </p>
                             <button class="btn btn-outline" style="font-size: 0.8rem; margin-bottom: 1rem;"
                                 onclick="downloadSample()">Download Template</button>
                             <input type="file" id="csvFile" accept=".csv, .xlsx" style="width: 100%;">
@@ -593,7 +595,8 @@
                         <div class="card" style="flex: 1;">
                             <h3><i class="ri-file-excel-2-line"></i> Bulk Upload (Full Accounts)</h3>
                             <p style="font-size: 0.9em; margin-bottom: 0.5rem;">Cols:
-                                <code>name, email, department, password</code></p>
+                                <code>name, email, department, password</code>
+                            </p>
                             <button class="btn btn-outline" style="font-size: 0.8rem; margin-bottom: 1rem;"
                                 onclick="downloadTeacherSample()">Download Template</button>
                             <input type="file" id="teacherCsvFile" accept=".csv, .xlsx" style="width: 100%;">

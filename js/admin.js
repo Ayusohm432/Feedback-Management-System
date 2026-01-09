@@ -204,7 +204,48 @@ function filterApprovals(role, tabEl) { document.querySelectorAll('.sub-tab').fo
 function renderApprovals(filterRole) { const container = document.getElementById('approvals-list-container'); const filtered = filterRole === 'all' ? allPendingUsers : allPendingUsers.filter(u => u.role === filterRole); if (filtered.length === 0) { container.innerHTML = `<p style="padding:1rem;">No pending requests for ${filterRole}.</p>`; return; } let html = '<table class="w-full"><thead><tr><th>Name</th><th>Role</th><th>Info</th><th>Actions</th></tr></thead><tbody>'; filtered.forEach(u => { html += `<tr><td><strong>${u.name}</strong><br><small>${u.email}</small></td><td><span class="pill pill-pending">${u.role.toUpperCase()}</span></td><td>${u.role === 'student' ? u.regNum : (u.deptId || 'N/A')}</td><td><button class="btn btn-primary" onclick="approveUser('${u.id}')">Approve</button> <button class="btn btn-outline" onclick="rejectUser('${u.id}')">Reject</button></td></tr>`; }); html += '</tbody></table>'; container.innerHTML = html; }
 window.approveUser = async (uid) => { try { await db.collection('users').doc(uid).update({ status: 'approved' }); } catch (e) { console.error(e); } };
 window.rejectUser = async (uid) => { if (!confirm("Permantently remove this request?")) return; try { await db.collection('users').doc(uid).delete(); } catch (e) { console.error(e); } };
-async function loadProfile() { const user = firebase.auth().currentUser; if (!user) return; document.getElementById('profile-email').innerText = user.email; document.getElementById('profile-uid').innerText = user.uid; if (user.metadata) { document.getElementById('profile-joined').innerText = new Date(user.metadata.creationTime).toLocaleDateString(); document.getElementById('profile-last-login').innerText = new Date(user.metadata.lastSignInTime).toLocaleString(); } try { const doc = await db.collection('users').doc(user.uid).get(); if (doc.exists) { const data = doc.data(); const name = data.name || "Admin User"; document.getElementById('profile-name').innerText = name; document.getElementById('profile-role').innerText = (data.role || 'ADMIN').toUpperCase(); document.getElementById('profile-status').innerText = (data.status || 'Active'); const initial = name.charAt(0); document.getElementById('profile-avatar').src = `https://ui-avatars.com/api/?name=${initial}&background=0D8ABC&color=fff&size=128`; if (document.getElementById('editProfileName')) document.getElementById('editProfileName').value = name; } } catch (err) { console.error("Profile Load Error", err); } }
+async function loadProfile() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    // 1. Auth Details (Tab & Header)
+    if (document.getElementById('profile-email')) document.getElementById('profile-email').innerText = user.email;
+    if (document.getElementById('profile-uid')) document.getElementById('profile-uid').innerText = user.uid;
+    if (document.getElementById('top-bar-email')) document.getElementById('top-bar-email').innerText = user.email;
+
+    if (user.metadata) {
+        if (document.getElementById('profile-joined')) document.getElementById('profile-joined').innerText = new Date(user.metadata.creationTime).toLocaleDateString();
+        if (document.getElementById('profile-last-login')) document.getElementById('profile-last-login').innerText = new Date(user.metadata.lastSignInTime).toLocaleString();
+    }
+
+    // 2. Firestore Details
+    try {
+        const doc = await db.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+            const data = doc.data();
+            const name = data.name || "Admin User";
+
+            // Update Profile Tab
+            if (document.getElementById('profile-name')) document.getElementById('profile-name').innerText = name;
+            if (document.getElementById('profile-role')) document.getElementById('profile-role').innerText = (data.role || 'ADMIN').toUpperCase();
+            if (document.getElementById('profile-status')) document.getElementById('profile-status').innerText = (data.status || 'Active');
+
+            // Update Top Bar
+            if (document.getElementById('top-bar-name')) document.getElementById('top-bar-name').innerText = name;
+
+            // Update Avatars (Both Tab and Header)
+            const initial = name.charAt(0);
+            const avatarUrl = `https://ui-avatars.com/api/?name=${initial}&background=0D8ABC&color=fff&size=128`;
+            if (document.getElementById('profile-avatar')) document.getElementById('profile-avatar').src = avatarUrl;
+            if (document.getElementById('top-bar-avatar')) document.getElementById('top-bar-avatar').src = avatarUrl;
+
+            // Pre-fill Edit Form
+            if (document.getElementById('editProfileName')) document.getElementById('editProfileName').value = name;
+        }
+    } catch (err) {
+        console.error("Profile Load Error", err);
+    }
+}
 async function handleUpdateProfile(e) { e.preventDefault(); const newName = document.getElementById('editProfileName').value; const user = firebase.auth().currentUser; try { await db.collection('users').doc(user.uid).update({ name: newName }); document.getElementById('profile-name').innerText = newName; document.getElementById('profile-avatar').src = `https://ui-avatars.com/api/?name=${newName.charAt(0)}&background=0D8ABC&color=fff&size=128`; alert("Profile Updated!"); } catch (err) { console.error(err); alert("Error updating profile."); } }
 
 // --- 6. ADVANCED FEEDBACK EXPLORER ---
