@@ -305,7 +305,7 @@
                             </div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-icon"><i class="ri-group-line"></i></div>
+                            <div class="stat-icon"><i class="ri-user-tie-line"></i></div>
                             <div>
                                 <h3 id="stat-teachers">0</h3>
                                 <p>My Teachers</p>
@@ -373,11 +373,17 @@
                     <div id="dept-feedback-container" class="feedback-grid">Loading...</div>
                 </section>
 
-                <!-- 5. APPROVALS -->
+                <!-- 5. APPROVALS (UPDATED) -->
                 <section id="tab-approvals" class="tab-section">
-                    <div class="card">
-                        <h3>Pending Approvals (My Dept)</h3>
-                        <div id="dept-approvals-container">Loading...</div>
+                    <div class="stats-row">
+                        <div class="card" style="flex:1;">
+                            <h3><i class="ri-user-follow-line"></i> Pending Students</h3>
+                            <div id="dept-approvals-students">Loading...</div>
+                        </div>
+                        <div class="card" style="flex:1;">
+                            <h3><i class="ri-user-star-line"></i> Pending Teachers</h3>
+                            <div id="dept-approvals-teachers">Loading...</div>
+                        </div>
                     </div>
                 </section>
 
@@ -404,7 +410,8 @@
                         <div class="card" style="flex: 1;">
                             <h3>Bulk Upload</h3>
                             <p style="font-size:0.9em;color:#666;">CSV Cols:
-                                <code>student_id, name, password</code><br>(Session auto-assigned)</p>
+                                <code>student_id, name, password</code><br>(Session auto-assigned)
+                            </p>
                             <input type="file" id="bulkStudentFile" accept=".csv" style="margin:1rem 0;">
                             <button class="btn btn-primary" onclick="handleDeptBulkStudent()">Upload</button>
                         </div>

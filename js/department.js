@@ -71,7 +71,7 @@ function switchTab(tab, el) {
     if (tab === 'sessions') loadSessionsList();
 }
 
-// --- 1. SESSIONS MGMT (NEW) ---
+// --- 1. SESSIONS MGMT ---
 function loadSessionsList() {
     const arr = currentDeptDoc.sessionsHistory || [];
     const container = document.getElementById('sessions-list-container');
@@ -131,19 +131,36 @@ function loadDeptStats() {
 }
 
 function loadRecentActivity() {
-    db.collection('users').where('department', '==', currentDeptId).orderBy('createdAt', 'desc').limit(5).onSnapshot(snap => {
+    // Client-side sort to avoid composite index requirement
+    db.collection('users').where('department', '==', currentDeptId).onSnapshot(snap => {
         const container = document.getElementById('dept-activity-feed');
-        if (snap.empty) { container.innerHTML = "<p style='color:#666; font-style:italic;'>No recent activity.</p>"; return; }
+        if (snap.empty) {
+            container.innerHTML = "<p style='color:#666; font-style:italic;'>No recent activity.</p>";
+            return;
+        }
+
+        // Convert to array and sort
+        let users = [];
+        snap.forEach(doc => users.push(doc.data()));
+        users.sort((a, b) => {
+            const tA = a.createdAt ? a.createdAt.seconds : 0;
+            const tB = b.createdAt ? b.createdAt.seconds : 0;
+            return tB - tA;
+        });
+
+        // Take top 5
+        users = users.slice(0, 5);
 
         let html = '';
-        snap.forEach(doc => {
-            const d = doc.data();
+        users.forEach(d => {
             const date = d.createdAt ? new Date(d.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
-            const icon = d.role === 'student' ? 'ri-user-line' : 'ri-user-tie-line';
+            const icon = d.role === 'student' ? 'ri-user-line' : (d.role === 'teacher' ? 'ri-user-tie-line' : 'ri-user-settings-line');
+            const bg = d.role === 'student' ? '#e0f2fe' : (d.role === 'teacher' ? '#dcfce7' : '#f3f4f6');
+            const color = d.role === 'student' ? '#0284c7' : (d.role === 'teacher' ? '#16a34a' : '#4b5563');
 
             html += `
             <div style="display:flex; align-items:center; gap:1rem; padding:0.75rem 0; border-bottom:1px solid #eee;">
-                <div style="width:32px; height:32px; background:#e0f2fe; color:#0284c7; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                <div style="width:32px; height:32px; background:${bg}; color:${color}; border-radius:50%; display:flex; align-items:center; justify-content:center;">
                     <i class="${icon}"></i>
                 </div>
                 <div>
@@ -265,25 +282,38 @@ async function loadDeptFeedback() {
     }
 }
 
-// Reuse Approvals
+// Split Approvals
 function loadDeptApprovals() {
-    const container = document.getElementById('dept-approvals-container');
+    const sContainer = document.getElementById('dept-approvals-students');
+    const tContainer = document.getElementById('dept-approvals-teachers');
+    if (!sContainer || !tContainer) return;
+
     db.collection('users').where('department', '==', currentDeptId).where('status', '==', 'pending').onSnapshot(snap => {
-        if (snap.empty) { container.innerHTML = "No pending approvals."; return; }
-        let html = '<table class="w-full"><thead><tr><th>Name</th><th>Role</th><th>Action</th></tr></thead><tbody>';
+        let sHTML = '<table class="w-full"><thead><tr><th>Name</th><th>Reg No</th><th>Action</th></tr></thead><tbody>';
+        let tHTML = '<table class="w-full"><thead><tr><th>Name</th><th>Email</th><th>Action</th></tr></thead><tbody>';
+
+        let sCount = 0, tCount = 0;
+
         snap.forEach(doc => {
             const u = doc.data();
-            html += `<tr>
-                <td><strong>${u.name}</strong><br><small>${u.email}</small></td>
-                <td>${u.role}</td>
-                <td>
-                    <button class="btn btn-primary" onclick="approveUser('${doc.id}')">Approve</button>
-                    <button class="btn btn-outline" onclick="rejectUser('${doc.id}')">Reject</button>
-                </td>
-             </tr>`;
+            const actionBtns = `
+                 <button class="btn btn-primary" style="padding:0.25rem 0.5rem; font-size:0.8em;" onclick="approveUser('${doc.id}')">Approve</button>
+                 <button class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.8em;" onclick="rejectUser('${doc.id}')">Reject</button>`;
+
+            if (u.role === 'student') {
+                sCount++;
+                sHTML += `<tr><td>${u.name}</td><td>${u.regNum || '-'}</td><td>${actionBtns}</td></tr>`;
+            } else if (u.role === 'teacher') {
+                tCount++;
+                tHTML += `<tr><td>${u.name}</td><td>${u.email}</td><td>${actionBtns}</td></tr>`;
+            }
         });
-        html += '</tbody></table>';
-        container.innerHTML = html;
+
+        sHTML += '</tbody></table>';
+        tHTML += '</tbody></table>';
+
+        sContainer.innerHTML = sCount ? sHTML : '<p style="color:#666; padding:1rem;">No pending students.</p>';
+        tContainer.innerHTML = tCount ? tHTML : '<p style="color:#666; padding:1rem;">No pending teachers.</p>';
     });
 }
 
