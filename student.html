@@ -4,38 +4,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Feedback Portal</title>
+    <title>Student Dashboard - FMS</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .form-group {
-            margin-bottom: 1.5rem;
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            min-height: 100vh;
         }
 
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
+        .sidebar {
+            background: var(--neutral-900);
+            color: white;
+            display: flex;
+            flex-direction: column;
         }
 
-        input,
-        select,
-        textarea {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--neutral-300);
+        .brand {
+            padding: 2rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-bottom: 1px solid var(--neutral-700);
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 1rem;
+            flex: 1;
+        }
+
+        .sidebar-link {
+            color: var(--neutral-300);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
             border-radius: var(--radius-md);
-            font-family: inherit;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+            cursor: pointer;
         }
 
+        .sidebar-link:hover,
+        .sidebar-link.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .top-bar {
+            background: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .profile-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            cursor: pointer;
+        }
+
+        .profile-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-light);
+            object-fit: cover;
+        }
+
+        .tab-section {
+            display: none;
+        }
+
+        .tab-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-light);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .time-badge {
+            background: #e0f2fe;
+            color: var(--primary);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-family: monospace;
+            font-weight: 700;
+        }
+
+        /* Form Styles */
         .rating-options {
             display: flex;
             gap: 1rem;
+            margin-top: 0.5rem;
         }
 
         .rating-btn {
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             border: 2px solid var(--neutral-300);
             display: flex;
@@ -43,142 +149,208 @@
             justify-content: center;
             cursor: pointer;
             font-weight: bold;
+            transition: 0.2s;
+        }
+
+        .rating-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
         }
 
         .rating-btn.selected {
             background: var(--primary);
             color: white;
             border-color: var(--primary);
+            transform: scale(1.1);
+        }
+
+        .feedback-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1rem;
         }
     </style>
 </head>
 
 <body>
-    <div class="container" style="max-width: 800px; padding: 2rem 0;">
-        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-            <h1>Submit Feedback</h1>
-            <button class="btn btn-outline" onclick="logout()">Logout</button>
-        </header>
 
-        <div class="card" style="margin-top: 2rem;">
-            <form id="feedbackForm">
-                <div class="form-group">
-                    <label>Subject Code / Name</label>
-                    <input type="text" id="subject" placeholder="e.g. CS101 Data Structures" required>
+    <div class="dashboard-grid">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">FMS Student</div>
+            <ul class="sidebar-menu">
+                <li><a class="sidebar-link active" onclick="switchTab('overview', this)"><i
+                            class="ri-dashboard-line"></i> Overview</a></li>
+                <li><a class="sidebar-link" onclick="switchTab('give-feedback', this)"><i class="ri-feedback-line"></i>
+                        Give Feedback</a></li>
+                <li><a class="sidebar-link" onclick="switchTab('history', this)"><i class="ri-history-line"></i> My
+                        History</a></li>
+                <li><a class="sidebar-link" onclick="switchTab('profile', this)"><i class="ri-user-settings-line"></i>
+                        Profile</a></li>
+                <li style="margin-top: auto;"><a class="sidebar-link" onclick="logout()"><i
+                            class="ri-logout-box-r-line"></i> Logout</a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main style="padding: 0; background: #f8fafc; overflow-y: auto;">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div>
+                    <h2 id="pageTitle" style="margin:0;">Overview</h2>
+                    <small style="color:#666;">Welcome back, Scholar</small>
                 </div>
 
-                <div class="form-group">
-                    <label>Teacher</label>
-                    <select id="teacher_select" required onchange="checkReviewStatus()">
-                        <option value="">Select Teacher...</option>
-                        <!-- Dynamic -->
-                    </select>
-                    <small id="statusMsg" style="color: red; display: none;">Reviews are currently CLOSED for this
-                        teacher.</small>
-                </div>
+                <div class="time-badge" id="realtime-clock">--:--:--</div>
 
-                <div class="form-group">
-                    <label>Rating (1-5)</label>
-                    <div class="rating-options" id="ratingContainer">
-                        <div class="rating-btn" onclick="setRating(1)">1</div>
-                        <div class="rating-btn" onclick="setRating(2)">2</div>
-                        <div class="rating-btn" onclick="setRating(3)">3</div>
-                        <div class="rating-btn" onclick="setRating(4)">4</div>
-                        <div class="rating-btn" onclick="setRating(5)">5</div>
+                <div class="profile-menu" onclick="switchTab('profile', document.querySelectorAll('.sidebar-link')[3])">
+                    <div style="text-align: right;">
+                        <div style="font-weight: 600;" id="s-name-display">Student</div>
+                        <small style="color: var(--neutral-700);" id="s-email-display">@fms.local</small>
                     </div>
-                    <input type="hidden" id="ratingValue" required>
+                    <img src="https://ui-avatars.com/api/?name=Student&background=0D8ABC&color=fff" class="profile-img"
+                        id="s-avatar">
                 </div>
+            </div>
 
-                <div class="form-group">
-                    <label>Comments</label>
-                    <textarea id="comments" rows="4" placeholder="Share your honest feedback..."></textarea>
-                </div>
+            <div style="padding: 0 2rem 2rem;">
 
-                <button type="submit" id="submitBtn" class="btn btn-primary" style="width: 100%;">Submit
-                    Feedback</button>
-            </form>
-        </div>
+                <!-- 1. OVERVIEW -->
+                <section id="tab-overview" class="tab-section active">
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ri-message-2-line"></i></div>
+                            <div>
+                                <h3 id="stat-given">0</h3>
+                                <p>Feedbacks Given</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ri-user-follow-line"></i></div>
+                            <div>
+                                <h3 id="stat-teachers-count">0</h3>
+                                <p>Available Teachers</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h3>Ready to submit?</h3>
+                            <p style="color:#666;">Share your valuable feedback for your current session.</p>
+                        </div>
+                        <button class="btn btn-primary"
+                            onclick="switchTab('give-feedback', document.querySelectorAll('.sidebar-link')[1])">
+                            Give Feedback <i class="ri-arrow-right-line"></i>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- 2. GIVE FEEDBACK -->
+                <section id="tab-give-feedback" class="tab-section">
+                    <div class="card" style="max-width: 800px; margin: 0 auto;">
+                        <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
+                            Submit Feedback Form
+                        </h3>
+                        <form id="feedbackForm">
+                            <div class="form-group">
+                                <label>Subject Code / Name</label>
+                                <input type="text" id="subject" class="form-control"
+                                    placeholder="e.g. CS101 Data Structures" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Teacher</label>
+                                <select id="teacher_select" class="form-control" required
+                                    onchange="checkReviewStatus()">
+                                    <option value="">Select Teacher...</option>
+                                    <!-- Dynamic -->
+                                </select>
+                                <div id="statusMsg"
+                                    style="margin-top:0.5rem; padding:0.5rem; background:#fee2e2; color:#ef4444; border-radius:4px; display:none; font-size:0.9em;">
+                                    <i class="ri-error-warning-line"></i> Reviews are currently <strong>CLOSED</strong>
+                                    for this teacher.
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Rating (1-5)</label>
+                                <div class="rating-options" id="ratingContainer">
+                                    <div class="rating-btn" onclick="setRating(1)">1</div>
+                                    <div class="rating-btn" onclick="setRating(2)">2</div>
+                                    <div class="rating-btn" onclick="setRating(3)">3</div>
+                                    <div class="rating-btn" onclick="setRating(4)">4</div>
+                                    <div class="rating-btn" onclick="setRating(5)">5</div>
+                                </div>
+                                <input type="hidden" id="ratingValue" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Comments</label>
+                                <textarea id="comments" rows="5" class="form-control"
+                                    placeholder="Share your honest feedback... What went well? What could be improved?"></textarea>
+                            </div>
+
+                            <button type="submit" id="submitBtn" class="btn btn-primary"
+                                style="width: 100%; margin-top:1rem;">
+                                Submit Feedback
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- 3. MY HISTORY -->
+                <section id="tab-history" class="tab-section">
+                    <div class="card">
+                        <h3>My Feedback History</h3>
+                        <div id="history-container" style="margin-top:1.5rem;">
+                            <!-- Dynamic Content -->
+                            Loading history...
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. PROFILE -->
+                <section id="tab-profile" class="tab-section">
+                    <div class="card">
+                        <h3>My Profile</h3>
+                        <div style="display:grid; gap:1rem; margin-top:1rem; max-width:500px;">
+                            <div><label style="font-size:0.85em; font-weight:600; color:#666;">Name</label>
+                                <input type="text" id="pName" class="form-control" disabled
+                                    style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                            </div>
+                            <div><label style="font-size:0.85em; font-weight:600; color:#666;">Email</label>
+                                <input type="text" id="pEmail" class="form-control" disabled
+                                    style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                            </div>
+                            <div><label style="font-size:0.85em; font-weight:600; color:#666;">Department ID</label>
+                                <input type="text" id="pDept" class="form-control" disabled
+                                    style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
     </div>
 
+    <!-- Dependencies -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="js/firebase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/student.js"></script>
     <script>
         checkAuth('student');
-
-        let teacherDataMap = {}; // Cache to check isReviewOpen
-
-        // Load Teachers on Init
-        const sel = document.getElementById('teacher_select');
-        db.collection('users').where('role', '==', 'teacher').get().then(snap => {
-            snap.forEach(doc => {
-                const t = doc.data();
-                teacherDataMap[doc.id] = t; // Store full obj
-                const opt = document.createElement('option');
-                opt.value = doc.id; // Use UID as value
-                opt.innerText = `${t.name} (${t.department || 'General'})`;
-                sel.appendChild(opt);
-            });
-        });
-
-        function checkReviewStatus() {
-            const uid = sel.value;
-            const btn = document.getElementById('submitBtn');
-            const msg = document.getElementById('statusMsg');
-
-            if (!uid) {
-                btn.disabled = false; msg.style.display = 'none'; return;
-            }
-
-            const teacher = teacherDataMap[uid];
-            // If isReviewOpen is FALSE (or undefined), block it.
-            if (!teacher.isReviewOpen) {
-                btn.disabled = true;
-                btn.style.opacity = 0.5;
-                btn.innerText = "Reviews Closed";
-                msg.style.display = 'block';
-            } else {
-                btn.disabled = false;
-                btn.style.opacity = 1;
-                btn.innerText = "Submit Feedback";
-                msg.style.display = 'none';
-            }
-        }
-
-        function setRating(val) {
-            document.getElementById('ratingValue').value = val;
-            document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
-            document.querySelectorAll('.rating-btn')[val - 1].classList.add('selected');
-        }
-
-        document.getElementById('feedbackForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const rating = document.getElementById('ratingValue').value;
-            if (!rating) return alert("Please select a rating.");
-
-            // Re-check before submit
-            const teacherId = document.getElementById('teacher_select').value;
-            if (!teacherDataMap[teacherId].isReviewOpen) {
-                return alert("Reviews are closed for this teacher.");
-            }
-
-            const data = {
-                subject: document.getElementById('subject').value,
-                teacher_id: teacherId,
-                rating: parseInt(rating),
-                comments: document.getElementById('comments').value,
-                department: teacherDataMap[teacherId].department || 'General',
-                submitted_at: new Date()
-            };
-
-            try {
-                await db.collection("feedback").add(data);
-                alert("Feedback Submitted Successfully!");
-                window.location.reload();
-            } catch (err) { console.error(err); alert("Error submitting feedback."); }
-        };
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('realtime-clock').innerText = now.toLocaleTimeString();
+        }, 1000);
     </script>
 </body>
 
