@@ -1,4 +1,3 @@
-
 const firebaseConfig = {
   apiKey: "AIzaSyCmHGbZnF4mrkxytznnqW9OsQw-CMlFy-I",
   authDomain: "feedback-management-syst-5344a.firebaseapp.com",
