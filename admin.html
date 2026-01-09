@@ -633,6 +633,53 @@
     <script src="js/auth.js"></script>
     <script src="js/admin.js"></script>
     <script> checkAuth('admin'); </script>
+    <!-- Manage Subjects Modal -->
+    <div id="subjectModal" class="modal-overlay">
+        <div class="modal-content" style="max-width:600px;">
+            <button class="close-btn" onclick="closeSubjectModal()">&times;</button>
+            <h2 id="subjectModalTitle" style="margin-bottom:0.5rem;">Manage Subjects</h2>
+            <p style="color:#666; margin-bottom:1.5rem;" id="subjectModalSubtitle">Assign subjects to teacher.</p>
+
+            <!-- Add Subject Form -->
+            <form id="addSubjectForm" onsubmit="handleAddSubject(event)"
+                style="background:#f9f9f9; padding:1rem; border-radius:8px; margin-bottom:1.5rem;">
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:0.5rem; align-items:end;">
+                    <div>
+                        <label style="font-size:0.8em; color:#666;">Subject Name</label>
+                        <input type="text" id="assignSubName" required placeholder="e.g. Mathematics-I"
+                            style="padding:0.4rem; width:100%; border:1px solid #ddd; border-radius:4px;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8em; color:#666;">Year</label>
+                        <select id="assignSubYear" required
+                            style="padding:0.4rem; width:100%; border:1px solid #ddd; border-radius:4px;">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8em; color:#666;">Sem</label>
+                        <select id="assignSubSem" required
+                            style="padding:0.4rem; width:100%; border:1px solid #ddd; border-radius:4px;">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" style="padding:0.5rem 1rem;"><i class="ri-add-line"></i></button>
+                </div>
+            </form>
+
+            <h4 style="margin-bottom:0.5rem;">Assigned Subjects</h4>
+            <div id="assigned-subjects-list"
+                style="max-height:300px; overflow-y:auto; border:1px solid #eee; border-radius:4px;">
+                <!-- List items will go here -->
+                <p style="padding:1rem; color:#999; text-align:center;">No subjects assigned.</p>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

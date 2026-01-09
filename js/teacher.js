@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Load Data
                 loadStats();
+                loadMySubjects();
                 loadTeacherFeedback();
                 loadAnalytics();
             } else {
@@ -60,11 +61,34 @@ function loadStats() {
         document.getElementById('stat-avg-rating').innerText = avg;
         document.getElementById('stat-total-reviews').innerText = total;
 
-        const isOpen = currentUserDoc.isReviewOpen;
-        const statusEl = document.getElementById('stat-status');
-        statusEl.innerText = isOpen ? 'Open' : 'Closed';
         statusEl.style.color = isOpen ? '#16a34a' : '#ef4444';
     });
+}
+
+function loadMySubjects() {
+    const list = document.getElementById('my-subjects-container');
+    if (!list) return;
+
+    if (!currentUserDoc.assignedSubjects || currentUserDoc.assignedSubjects.length === 0) {
+        list.innerHTML = '<div style="color:#999; text-align:center; padding:1rem; border:1px dashed #eee; border-radius:4px;">No subjects assigned yet.</div>';
+        return;
+    }
+
+    let html = '<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:1rem;">';
+    currentUserDoc.assignedSubjects.forEach(s => {
+        html += `
+         <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:0.75rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-weight:600; font-size:0.95em;">${s.name}</div>
+                <div style="font-size:0.8em; color:#666;">Year ${s.year} • Sem ${s.semester}</div>
+            </div>
+            <div style="font-size:0.75em; padding:0.2rem 0.5rem; border-radius:4px; ${s.isOpen ? 'background:#dcfce7; color:#16a34a;' : 'background:#fee2e2; color:#ef4444;'}">
+                ${s.isOpen ? 'Open' : 'Closed'}
+            </div>
+         </div>`;
+    });
+    html += '</div>';
+    list.innerHTML = html;
 }
 
 async function loadTeacherFeedback() {

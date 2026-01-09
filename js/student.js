@@ -80,6 +80,7 @@ function loadStats() {
     });
 }
 
+// 1. UPDATED loadTeachers
 function loadTeachers() {
     const sel = document.getElementById('teacher_select');
     let query = db.collection('users').where('role', '==', 'teacher');
@@ -89,70 +90,106 @@ function loadTeachers() {
 
     query.get().then(snap => {
         let count = 0;
-        sel.innerHTML = '<option value="">Select Teacher...</option>'; // Reset
+        sel.innerHTML = '<option value="">Select Teacher...</option>';
 
         snap.forEach(doc => {
             const t = doc.data();
             teacherDataMap[doc.id] = t;
-            const opt = document.createElement('option');
-            opt.value = doc.id;
-            opt.innerText = `${t.name} (${t.department || 'Gen'})`;
-            sel.appendChild(opt);
-            count++;
+
+            // NEW: Only add teacher if they have at least one OPEN subject for my Year/Sem
+            const valid = hasValidSubjects(t);
+            if (valid) {
+                const opt = document.createElement('option');
+                opt.value = doc.id;
+                opt.innerText = `${t.name} (${t.department || 'Gen'})`;
+                sel.appendChild(opt);
+                count++;
+            }
         });
         document.getElementById('stat-teachers-count').innerText = count;
         checkReviewStatus();
     });
 }
 
-// NEW: Load Open Reviews for the dedicated tab
+// Helper to check if teacher has valid subjects for current student
+function hasValidSubjects(teacher) {
+    if (!teacher.assignedSubjects || !Array.isArray(teacher.assignedSubjects)) return false; // Strict mode: must have assigned subjects
+    const myYear = (currentUserDoc.year || '1').toString();
+    const mySem = (currentUserDoc.semester || '1').toString();
+
+    // Find at least one subject that is Open AND matches Year/Sem
+    return teacher.assignedSubjects.some(s => s.isOpen && s.year.toString() === myYear && s.semester.toString() === mySem);
+}
+
+function getValidSubjects(teacher) {
+    if (!teacher.assignedSubjects) return [];
+    const myYear = (currentUserDoc.year || '1').toString();
+    const mySem = (currentUserDoc.semester || '1').toString();
+    return teacher.assignedSubjects.filter(s => s.isOpen && s.year.toString() === myYear && s.semester.toString() === mySem);
+}
+
+
+// 2. UPDATED loadOpenReviews
 function loadOpenReviews() {
     const container = document.getElementById('open-reviews-grid');
     if (!container) return;
-
     container.innerHTML = 'Loading...';
 
-    // We can reuse teacherDataMap if loaded, or query strict. 
-    // Let's filter client-side from teacherDataMap to ensure sync, or re-query if list is large.
-    // For safety, re-query or iterate existing cache if we trust loadTeachers called first. 
-    // loadTeachers is async, so better safe to query or wait. 
-    // Let's query users where role=teacher and isReviewOpen=true.
+    // We rely on loadTeachers having populated teacherDataMap mostly, but to be safe, we query.
+    // Actually, let's query all teachers in dept and filter client side for better subject logic
+    let query = db.collection('users').where('role', '==', 'teacher');
+    if (currentUserDoc.department) query = query.where('department', '==', currentUserDoc.department);
 
-    db.collection('users').where('role', '==', 'teacher').where('isReviewOpen', '==', true).get().then(snap => {
+    query.get().then(snap => {
         if (snap.empty) {
-            container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:3rem; color:#999; background:white; border-radius:8px; border:2px dashed #eee;">
-                <i class="ri-lock-2-line" style="font-size:2rem; margin-bottom:1rem; display:block;"></i>
-                No reviews are currently open.
-            </div>`;
+            container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:3rem; color:#999; border:2px dashed #eee;">No reviews open.</div>`;
             return;
         }
 
         let html = '';
+        let visibleCount = 0;
+
         snap.forEach(doc => {
             const t = doc.data();
-            // Filter by Dept if student has one
-            if (currentUserDoc.department && t.department !== currentUserDoc.department) return;
+            const tid = doc.id;
+            teacherDataMap[tid] = t; // Ensure cache update
 
-            // Check if already submitted
+            // VALIDATION
+            const validSubjects = getValidSubjects(t);
+            if (validSubjects.length === 0) return; // Skip teacher if no subjects for me
+
+            visibleCount++;
             const session = t.activeSession || 'General';
-            const isDone = submittedSessions.has(`${firebase.auth().currentUser.uid}_${session}`);
+
+            // Check if ALL valid subjects are submitted? Or ANY?
+            // "Give Feedback" should remain active if there are subjects left to review.
+            // We'll check if there is AT LEAST ONE subject not yet submitted.
+
+            let pendingSubjects = [];
+            validSubjects.forEach(s => {
+                // Key: Teacher + Session + SubjectName
+                if (!submittedSessions.has(`${tid}_${session}_${s.name}`)) {
+                    pendingSubjects.push(s.name);
+                }
+            });
+
+            const isDone = pendingSubjects.length === 0;
 
             const btnHtml = isDone
-                ? `<button class="btn btn-outline" disabled style="width:100%; opacity:0.6; font-size:0.9em;"><i class="ri-checkbox-circle-line"></i> Submitted</button>`
-                : `<button class="btn btn-primary" style="width:100%;" onclick="startFeedback('${doc.id}')">Give Feedback <i class="ri-arrow-right-line"></i></button>`;
+                ? `<button class="btn btn-outline" disabled style="width:100%; opacity:0.6;"><i class="ri-checkbox-circle-line"></i> All Submitted</button>`
+                : `<button class="btn btn-primary" style="width:100%;" onclick="startFeedback('${tid}')">Give Feedback (${pendingSubjects.length}) <i class="ri-arrow-right-line"></i></button>`;
 
             html += `
-            <div class="card" style="display:flex; flex-direction:column; gap:0.5rem; transition:transform 0.2s; border:1px solid #f0f0f0;">
-                <div style="display:flex; align-items:center; gap:1rem; margin-bottom:0.5rem;">
-                    <img src="https://ui-avatars.com/api/?name=${t.name}&background=random" style="width:48px; height:48px; border-radius:50%;">
+            <div class="card" style="display:flex; flex-direction:column; gap:0.5rem; border:1px solid #f0f0f0;">
+                <div style="display:flex; align-items:center; gap:1rem;">
+                    <img src="https://ui-avatars.com/api/?name=${t.name}&background=random" style="width:48px; border-radius:50%;">
                     <div>
                         <h4 style="margin:0;">${t.name}</h4>
-                        <small style="color:#666;">${t.department || 'General'}</small>
+                        <small style="color:#666;">${t.department || 'Gen'}</small>
                     </div>
                 </div>
-                <div style="background:#f8fafc; padding:0.5rem; border-radius:4px; font-size:0.85em; color:#64748b; display:flex; justify-content:space-between;">
-                    <span>Session: <strong>${session}</strong></span>
-                    <span style="color:#10b981; font-weight:600;">Open</span>
+                <div style="background:#f8fafc; padding:0.5rem; font-size:0.85em; color:#64748b; margin-top:0.5rem;">
+                    <strong>Subjects:</strong> ${validSubjects.map(s => s.name).join(', ')}
                 </div>
                 <div style="margin-top:auto; padding-top:1rem;">
                     ${btnHtml}
@@ -160,72 +197,75 @@ function loadOpenReviews() {
             </div>`;
         });
 
-        container.innerHTML = html || `<div style="grid-column:1/-1; text-align:center; color:#999;">No teachers in your department are currently accepting reviews.</div>`;
+        container.innerHTML = html || `<div style="grid-column:1/-1; text-align:center; color:#999;">No reviews available for your Year/Semester.</div>`;
     });
 }
 
 function startFeedback(teacherId) {
-    // 1. Switch Tab
-    // Find the sidebar link for "Give Feedback" (index 2 now? Overview=0, Open=1, Give=2)
     const links = document.querySelectorAll('.sidebar-link');
     switchTab('give-feedback', links[2]);
 
-    // 2. Set Select Value
     const sel = document.getElementById('teacher_select');
     sel.value = teacherId;
 
-    // 3. Trigger Change
+    // Trigger update of subjects
     checkReviewStatus();
 
-    // 4. Scroll to top
     document.querySelector('main').scrollTop = 0;
 }
 
 function checkReviewStatus() {
     const sel = document.getElementById('teacher_select');
     const uid = sel.value;
+    const subSel = document.getElementById('subject');
     const btn = document.getElementById('submitBtn');
     const msg = document.getElementById('statusMsg');
 
+    // Reset UI
     btn.disabled = false;
     btn.style.opacity = 1;
     btn.innerHTML = `Submit Feedback <i class="ri-send-plane-fill"></i>`;
     msg.style.display = 'none';
+    subSel.innerHTML = '<option value="" disabled selected>Select Subject</option>';
 
     if (!uid) return;
 
     const teacher = teacherDataMap[uid];
     if (!teacher) return;
 
-    // 1. Check if Teacher is Open
-    if (!teacher.isReviewOpen) {
+    // 1. Validation (Subject based)
+    const validSubjects = getValidSubjects(teacher);
+    if (validSubjects.length === 0) {
         btn.disabled = true;
-        btn.style.opacity = 0.6;
-        btn.innerText = "Reviews Closed";
-        msg.innerHTML = `<i class="ri-lock-2-line"></i> Reviews are currently <strong>CLOSED</strong> for this teacher.`;
+        btn.innerText = "No Subjects";
+        msg.innerHTML = "No subjects assigned to this teacher for your Year/Semester are open for review.";
         msg.style.display = 'block';
         return;
     }
 
-    // 2. Check Duplicate
-    const year = currentUserDoc.year || '1';
-    const sem = currentUserDoc.semester || '1';
-    const checkKey = `${uid}_${year}_${sem}`;
+    // 2. Populate Subject Dropdown (Only non-submitted ones?)
+    // Creating options
+    const session = teacher.activeSession || 'General';
+    let availableCount = 0;
 
-    if (submittedSessions.has(checkKey)) {
+    validSubjects.forEach(s => {
+        // Check duplicate
+        const key = `${uid}_${session}_${s.name}`;
+        if (!submittedSessions.has(key)) {
+            const opt = document.createElement('option');
+            opt.value = s.name;
+            opt.innerText = s.name;
+            subSel.appendChild(opt);
+            availableCount++;
+        }
+    });
+
+    if (availableCount === 0) {
         btn.disabled = true;
-        btn.style.opacity = 0.6;
-        btn.innerText = "Already Submitted";
-        msg.innerHTML = `<i class="ri-checkbox-circle-line"></i> You have already provided feedback for <strong>${session}</strong> session.`;
+        btn.innerText = "All Submitted";
+        msg.innerHTML = "You have already submitted feedback for all open subjects of this teacher.";
         msg.style.display = 'block';
-        return;
     }
-}
-
-function setRating(val) {
-    document.getElementById('ratingValue').value = val;
-    document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
-    document.querySelectorAll('.rating-btn')[val - 1].classList.add('selected');
 }
 
 async function submitFeedback(e) {
@@ -234,12 +274,10 @@ async function submitFeedback(e) {
     if (!rating) return alert("Please select a rating.");
 
     const teacherId = document.getElementById('teacher_select').value;
+    const subject = document.getElementById('subject').value;
+    if (!subject) return alert("Please select a subject.");
+
     const teacher = teacherDataMap[teacherId];
-
-    if (!teacher.isReviewOpen) {
-        return alert("Reviews are closed for this teacher.");
-    }
-
     const session = teacher.activeSession || 'General';
 
     const year = currentUserDoc.year || '1';
@@ -252,7 +290,7 @@ async function submitFeedback(e) {
     const data = {
         student_id: firebase.auth().currentUser.uid,
         teacher_id: teacherId,
-        subject: document.getElementById('subject').value,
+        subject: subject,
         rating: parseInt(rating),
         comments: document.getElementById('comments').value,
         department: teacher.department || 'General',
@@ -266,15 +304,12 @@ async function submitFeedback(e) {
         await db.collection("feedback").add(data);
         alert("Feedback Submitted Successfully!");
         document.getElementById('feedbackForm').reset();
-        setRating(0); // clear
+        setRating(0);
         document.getElementById('ratingValue').value = "";
-
-        // Refresh
         loadHistory();
         loadOpenReviews();
         loadStats();
-        checkReviewStatus();
-
+        checkReviewStatus(); // Reset UI
     } catch (err) { console.error(err); alert("Error submitting feedback."); }
 }
 
@@ -299,14 +334,14 @@ function loadHistory() {
         snap.forEach(d => {
             const data = d.data();
             docs.push(data);
-            if (data.teacher_id) {
-                const ky = `${data.teacher_id}_${data.year || '1'}_${data.semester || '1'}`;
-                submittedSessions.add(ky);
+            if (data.teacher_id && data.session && data.subject) {
+                // NEW KEY: TeacherID_Session_Subject
+                submittedSessions.add(`${data.teacher_id}_${data.session}_${data.subject}`);
             }
         });
 
         checkReviewStatus(); // Sync
-        loadOpenReviews(); // Refresh Open Reviews UI (disable buttons)
+        loadOpenReviews();
 
         docs.sort((a, b) => (b.submitted_at?.seconds || 0) - (a.submitted_at?.seconds || 0));
 

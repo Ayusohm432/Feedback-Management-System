@@ -182,7 +182,7 @@ function loadDeptTeachers() {
             const container = document.getElementById('dept-teachers-list');
             if (snap.empty) { container.innerHTML = "<p>No teachers.</p>"; return; }
 
-            let html = '<table class="w-full"><thead><tr><th>Name</th><th>Email</th><th>Reviews</th></tr></thead><tbody>';
+            let html = '<table class="w-full"><thead><tr><th>Name</th><th>Email</th><th>Reviews</th><th>Subjects</th></tr></thead><tbody>';
             snap.forEach(doc => {
                 const t = { id: doc.id, ...doc.data() };
                 allMyTeachers.push(t);
@@ -196,6 +196,7 @@ function loadDeptTeachers() {
                         </label>
                         <span style="font-size:0.8em; margin-left:0.5rem; color:${t.isReviewOpen ? '#16a34a' : '#999'}">${t.isReviewOpen ? 'Open' : 'Closed'}</span>
                     </td>
+                    <td><button class="btn btn-sm btn-outline" onclick="openSubjectModal('${t.id}')">Manage</button></td>
                 </tr>`;
             });
             html += '</tbody></table>';
@@ -423,3 +424,116 @@ function loadDeptAnalytics() {
         new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Avg Rating', data, backgroundColor: '#3b82f6' }] }, options: { scales: { y: { max: 5 } } } });
     });
 }
+// --- Manage Subjects Logic ---
+let currentManageTeacherId = null;
+
+// Safe lookup
+async function openSubjectModal(teacherId) {
+    currentManageTeacherId = teacherId;
+    document.getElementById('subjectModal').classList.add('active');
+
+    let teacherName = "Teacher";
+    if (typeof allMyTeachers !== 'undefined') {
+        const t = allMyTeachers.find(u => u.id === teacherId);
+        if (t) teacherName = t.name;
+    }
+
+    document.getElementById('subjectModalSubtitle').innerText = `Assign subjects to ${teacherName}`;
+    loadAssignedSubjects(teacherId);
+}
+
+function closeSubjectModal() {
+    document.getElementById('subjectModal').classList.remove('active');
+    currentManageTeacherId = null;
+}
+
+async function loadAssignedSubjects(teacherId) {
+    const list = document.getElementById('assigned-subjects-list');
+    list.innerHTML = 'Loading...';
+    try {
+        const doc = await db.collection('users').doc(teacherId).get();
+        if (doc.exists) {
+            const subjects = doc.data().assignedSubjects || [];
+            if (subjects.length === 0) {
+                list.innerHTML = '<p style="padding:1rem; color:#999; text-align:center;">No subjects assigned.</p>';
+                return;
+            }
+            let html = '<table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#f0f0f0; text-align:left;"><th style="padding:0.5rem;">Subject</th><th style="padding:0.5rem;">Year/Sem</th><th style="padding:0.5rem;">Status</th><th style="padding:0.5rem;">Action</th></tr></thead><tbody>';
+            subjects.forEach((s, index) => {
+                html += `
+                    <tr style="border-bottom:1px solid #eee;">
+                        <td style="padding:0.5rem;">${s.name}</td>
+                        <td style="padding:0.5rem;">Y${s.year}-S${s.semester}</td>
+                        <td style="padding:0.5rem;">
+                            <label class="switch" style="transform:scale(0.8);">
+                                <input type="checkbox" ${s.isOpen ? 'checked' : ''} onchange="toggleSubjectStatus('${teacherId}', ${index}, this.checked)">
+                                <span class="slider round"></span>
+                            </label>
+                        </td>
+                        <td style="padding:0.5rem;">
+                            <button onclick="deleteSubject('${teacherId}', ${index})" style="color:red; background:none; border:none; cursor:pointer;"><i class="ri-delete-bin-line"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+            html += '</tbody></table>';
+            list.innerHTML = html;
+        }
+    } catch (err) { console.error(err); list.innerHTML = 'Error loading.'; }
+}
+
+async function handleAddSubject(e) {
+    e.preventDefault();
+    if (!currentManageTeacherId) return;
+    const name = document.getElementById('assignSubName').value;
+    const year = document.getElementById('assignSubYear').value;
+    const sem = document.getElementById('assignSubSem').value;
+
+    try {
+        const docRef = db.collection('users').doc(currentManageTeacherId);
+        const doc = await docRef.get();
+        let subjects = doc.data().assignedSubjects || [];
+
+        subjects.push({
+            name: name,
+            year: year,
+            semester: sem,
+            isOpen: true
+        });
+
+        await docRef.update({ assignedSubjects: subjects });
+        document.getElementById('addSubjectForm').reset();
+        loadAssignedSubjects(currentManageTeacherId);
+    } catch (err) { alert("Error adding subject: " + err.message); }
+}
+
+async function toggleSubjectStatus(teacherId, index, status) {
+    try {
+        const docRef = db.collection('users').doc(teacherId);
+        const doc = await docRef.get();
+        let subjects = doc.data().assignedSubjects || [];
+        if (subjects[index]) {
+            subjects[index].isOpen = status;
+            await docRef.update({ assignedSubjects: subjects });
+        }
+    } catch (err) { console.error(err); }
+}
+
+async function deleteSubject(teacherId, index) {
+    if (!confirm("Remove this subject?")) return;
+    try {
+        const docRef = db.collection('users').doc(teacherId);
+        const doc = await docRef.get();
+        let subjects = doc.data().assignedSubjects || [];
+        subjects.splice(index, 1);
+        await docRef.update({ assignedSubjects: subjects });
+        loadAssignedSubjects(teacherId);
+    } catch (err) { alert("Error deleting: " + err.message); }
+}
+
+// Bind to window
+window.openSubjectModal = openSubjectModal;
+window.closeSubjectModal = closeSubjectModal;
+window.handleAddSubject = handleAddSubject;
+window.toggleSubjectStatus = toggleSubjectStatus;
+window.deleteSubject = deleteSubject;
