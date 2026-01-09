@@ -5,6 +5,7 @@
 
 let currentUserDoc = null;
 let teacherDataMap = {}; // Cache to check isReviewOpen
+const submittedSessions = new Set(); // Stores set of "teacherId_session" to checking duplicates
 
 // Init
 document.addEventListener('DOMContentLoaded', async () => {
@@ -28,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Load Data
                 loadStats();
                 loadTeachers();
-                loadHistory();
+                loadHistory(); // This will also populate submittedSessions
             } else {
                 alert("Profile not found.");
                 logout();
@@ -38,6 +39,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Form Listener
     document.getElementById('feedbackForm').onsubmit = submitFeedback;
+
+    // Char Counter
+    const commentBox = document.getElementById('comments');
+    if (commentBox) {
+        // Create counter element
+        const counter = document.createElement('div');
+        counter.id = 'char-counter';
+        counter.style.textAlign = 'right';
+        counter.style.fontSize = '0.8em';
+        counter.style.color = '#999';
+        counter.style.marginTop = '0.25rem';
+        counter.innerText = '0 chars';
+        commentBox.parentNode.appendChild(counter);
+
+        commentBox.addEventListener('input', function () {
+            counter.innerText = `${this.value.length} chars`;
+            if (this.value.length > 500) {
+                counter.style.color = 'red';
+            } else {
+                counter.style.color = '#999';
+            }
+        });
+    }
 });
 
 function switchTab(tab, el) {
@@ -52,9 +76,6 @@ function switchTab(tab, el) {
 }
 
 function loadStats() {
-    // Ideally we would count a subcollection or use an aggregation, 
-    // but for now we'll count docs in history simply.
-    // Or just query once.
     const uid = firebase.auth().currentUser.uid;
     db.collection('feedback').where('student_id', '==', uid).get().then(snap => {
         document.getElementById('stat-given').innerText = snap.size;
@@ -63,11 +84,7 @@ function loadStats() {
 
 function loadTeachers() {
     const sel = document.getElementById('teacher_select');
-    // Ideally filter by Student's Department, but for now show all or maybe matching department
     let query = db.collection('users').where('role', '==', 'teacher');
-
-    // Optional: Filter by department if we want strict mode
-    // if(currentUserDoc.department) { query = query.where('department', '==', currentUserDoc.department); }
 
     query.get().then(snap => {
         let count = 0;
@@ -81,6 +98,9 @@ function loadTeachers() {
             count++;
         });
         document.getElementById('stat-teachers-count').innerText = count;
+
+        // Check review status in case selection is preserved or default
+        checkReviewStatus();
     });
 }
 
@@ -90,22 +110,45 @@ function checkReviewStatus() {
     const btn = document.getElementById('submitBtn');
     const msg = document.getElementById('statusMsg');
 
-    if (!uid) {
-        btn.disabled = false; msg.style.display = 'none'; return;
-    }
+    // Reset UI
+    btn.disabled = false;
+    btn.style.opacity = 1;
+    btn.innerHTML = `Submit Feedback <i class="ri-send-plane-fill"></i>`;
+    msg.style.display = 'none';
+    msg.className = '';
+
+    if (!uid) return;
 
     const teacher = teacherDataMap[uid];
-    // If isReviewOpen is FALSE (or undefined), block it.
+    if (!teacher) return;
+
+    // 1. Check if Teacher is Open
     if (!teacher.isReviewOpen) {
         btn.disabled = true;
-        btn.style.opacity = 0.5;
+        btn.style.opacity = 0.6;
         btn.innerText = "Reviews Closed";
+
+        msg.innerHTML = `<i class="ri-lock-2-line"></i> Reviews are currently <strong>CLOSED</strong> for this teacher.`;
+        msg.style.background = '#fee2e2';
+        msg.style.color = '#ef4444';
         msg.style.display = 'block';
-    } else {
-        btn.disabled = false;
-        btn.style.opacity = 1;
-        btn.innerText = "Submit Feedback";
-        msg.style.display = 'none';
+        return;
+    }
+
+    // 2. Check Duplicate for Session
+    const session = teacher.activeSession || 'General';
+    const checkKey = `${uid}_${session}`; // TeacherID_Session
+
+    if (submittedSessions.has(checkKey)) {
+        btn.disabled = true;
+        btn.style.opacity = 0.6;
+        btn.innerText = "Already Submitted";
+
+        msg.innerHTML = `<i class="ri-checkbox-circle-line"></i> You have already provided feedback for <strong>${session}</strong> session.`;
+        msg.style.background = '#dcfce7';
+        msg.style.color = '#166534';
+        msg.style.display = 'block';
+        return;
     }
 }
 
@@ -123,18 +166,16 @@ async function submitFeedback(e) {
     const teacherId = document.getElementById('teacher_select').value;
     const teacher = teacherDataMap[teacherId];
 
-    // Re-check
     if (!teacher.isReviewOpen) {
         return alert("Reviews are closed for this teacher.");
     }
 
-    // Prepare Data
-    // NOTE: In a real system, 'session' should come from the DEPT active session. 
-    // Assuming teacher object has 'activeSession' or we take it from somewhere. 
-    // For now, we'll try to find it in the teacher object or default to '2025-26'.
-    // Better yet: Teacher's department should have an active session. But teacher object itself has `department`.
-    // Let's assume standard session for now or 'N/A' if not set.
     const session = teacher.activeSession || 'General';
+
+    // Double check duplicate
+    if (submittedSessions.has(`${teacherId}_${session}`)) {
+        return alert("You have already submitted feedback for this session.");
+    }
 
     const data = {
         student_id: firebase.auth().currentUser.uid,
@@ -154,48 +195,73 @@ async function submitFeedback(e) {
         document.getElementById('feedbackForm').reset();
         document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
         document.getElementById('ratingValue').value = "";
-        checkReviewStatus(); // reset button state
-        loadStats(); // update count
+
+        // Update History & Stats immediately (Wait a bit for indexedDB or verify locally?)
+        // Simply re-calling loadHistory will work as onSnapshot will trigger
+        // But loadHistory is onSnapshot, so it should auto-update.
+        // loadStats though needs manual trigger
+        loadStats();
+
     } catch (err) { console.error(err); alert("Error submitting feedback."); }
 }
 
 function loadHistory() {
     const uid = firebase.auth().currentUser.uid;
     const container = document.getElementById('history-container');
-    container.innerHTML = 'Loading...';
+    container.innerHTML = '<div style="text-align:center; padding:2rem; color:#666;">Loading history...</div>';
 
-    // Use client side sort to avoid index hell on dynamic query
+    // Real-time listener
     db.collection('feedback').where('student_id', '==', uid).onSnapshot(snap => {
+        submittedSessions.clear();
+
         if (snap.empty) {
-            container.innerHTML = "No feedback history.";
+            container.innerHTML = `<div style="text-align:center; padding:2rem; border:2px dashed #eee; border-radius:8px; color:#999;">
+                <i class="ri-history-line" style="font-size:2rem; display:block; margin-bottom:0.5rem;"></i>
+                No feedback history yet.
+            </div>`;
+            checkReviewStatus(); // Update form state
             return;
         }
 
-        // Convert & Sort
         const docs = [];
-        snap.forEach(d => docs.push(d.data()));
+        snap.forEach(d => {
+            const data = d.data();
+            docs.push(data);
+            if (data.teacher_id && data.session) {
+                submittedSessions.add(`${data.teacher_id}_${data.session}`);
+            }
+        });
+
+        // Update form validation
+        checkReviewStatus();
+
+        // Sort desc
         docs.sort((a, b) => (b.submitted_at?.seconds || 0) - (a.submitted_at?.seconds || 0));
 
         let html = '';
         docs.forEach(d => {
-            const tName = teacherDataMap[d.teacher_id] ? teacherDataMap[d.teacher_id].name : 'Teacher';
+            const tName = teacherDataMap[d.teacher_id] ? teacherDataMap[d.teacher_id].name : 'Unknown Teacher';
             const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
-            const stars = '★'.repeat(d.rating) + '☆'.repeat(5 - d.rating);
 
+            // PRIVACY MODE: Do not show Rating or Comments
             html += `
-             <div class="feedback-card">
-                <div style="padding:1rem; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between;">
+             <div class="feedback-card" style="border-left: 4px solid var(--primary);">
+                <div style="padding:1rem; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                        <strong style="color:#333;">${tName}</strong> 
-                        <span style="color:#666; font-size:0.9em;">(${d.subject})</span>
+                        <strong style="color:#333; font-size:1.05em;">${tName}</strong> 
+                        <div style="font-size:0.85em; color:#666; margin-top:2px;">${d.subject}</div>
                     </div>
-                    <div style="color:#f59e0b;">${stars}</div>
+                    <div style="color:#10b981; background:#ecfdf5; padding:0.25rem 0.75rem; border-radius:2rem; font-size:0.8em; font-weight:600; display:flex; align-items:center; gap:0.25rem;">
+                        <i class="ri-check-double-line"></i> Submitted
+                    </div>
                 </div>
-                <div style="padding:1rem; color:#555; font-size:0.95em;">
-                    "${d.comments || 'No comments'}"
+                <!-- Hidden Content Placeholder -->
+                <div style="padding:1rem; background:#f8fafc; color:#64748b; font-size:0.9em; font-style:italic;">
+                    <i class="ri-lock-line" style="vertical-align:middle;"></i> Feedback content is hidden for privacy.
                 </div>
-                <div style="background:#fafafa; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; font-size:0.8em; color:#888;">
-                    Submitted on ${date} • Session: ${d.session || 'N/A'}
+                <div style="background:white; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; font-size:0.8em; color:#94a3b8; display:flex; justify-content:space-between;">
+                    <span>Session: <strong>${d.session || 'N/A'}</strong></span>
+                    <span>${date}</span>
                 </div>
              </div>`;
         });
