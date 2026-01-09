@@ -184,6 +184,8 @@
             <ul class="sidebar-menu">
                 <li><a class="sidebar-link active" onclick="switchTab('overview', this)"><i
                             class="ri-dashboard-line"></i> Overview</a></li>
+                <li><a class="sidebar-link" onclick="switchTab('open-reviews', this)"><i
+                            class="ri-notification-badge-line"></i> Open Reviews</a></li>
                 <li><a class="sidebar-link" onclick="switchTab('give-feedback', this)"><i class="ri-feedback-line"></i>
                         Give Feedback</a></li>
                 <li><a class="sidebar-link" onclick="switchTab('history', this)"><i class="ri-history-line"></i> My
@@ -237,53 +239,84 @@
                         </div>
                     </div>
 
-                    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="card"
+                        style="display:flex; justify-content:space-between; align-items:center; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color:white;">
                         <div>
-                            <h3>Ready to submit?</h3>
-                            <p style="color:#666;">Share your valuable feedback for your current session.</p>
+                            <h3 style="color:white;">Ready to share your thoughts?</h3>
+                            <p style="color:#e0e7ff;">Your feedback helps improve the learning experience for everyone.
+                            </p>
                         </div>
-                        <button class="btn btn-primary"
-                            onclick="switchTab('give-feedback', document.querySelectorAll('.sidebar-link')[1])">
-                            Give Feedback <i class="ri-arrow-right-line"></i>
+                        <button class="btn" style="background:white; color:#6366f1; border:none;"
+                            onclick="switchTab('open-reviews', document.querySelectorAll('.sidebar-link')[1])">
+                            View Open Reviews <i class="ri-arrow-right-line"></i>
                         </button>
                     </div>
                 </section>
 
-                <!-- 2. GIVE FEEDBACK -->
+                <!-- 2. OPEN REVIEWS (NEW) -->
+                <section id="tab-open-reviews" class="tab-section">
+                    <div class="card" style="margin-bottom:1.5rem;">
+                        <h3><i class="ri-notification-badge-line"></i> Open for Feedback</h3>
+                        <p style="color:#666; margin-top:0.5rem;">The following teachers from your department are
+                            currently accepting reviews.</p>
+                    </div>
+
+                    <div id="open-reviews-grid"
+                        style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1.5rem;">
+                        <!-- Dynamic Content -->
+                        <div style="grid-column:1/-1; text-align:center; padding:2rem; color:#888;">Loading available
+                            sessions...</div>
+                    </div>
+                </section>
+
+                <!-- 3. GIVE FEEDBACK -->
                 <section id="tab-give-feedback" class="tab-section">
-                    <div class="card" style="max-width: 800px; margin: 0 auto;">
-                        <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
-                            Submit Feedback Form
-                        </h3>
+                    <div class="card" style="max-width: 700px; margin: 0 auto; border-top: 4px solid var(--primary);">
+                        <div style="text-align:center; margin-bottom:2rem;">
+                            <div
+                                style="width:60px; height:60px; background:#f0f9ff; color:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.75rem; margin:0 auto 1rem;">
+                                <i class="ri-chat-smile-3-line"></i>
+                            </div>
+                            <h3>Submit Feedback</h3>
+                            <p style="color:#666;">Please fill out the form below honestly.</p>
+                        </div>
+
                         <form id="feedbackForm">
                             <div class="form-group">
-                                <label>Subject Code / Name</label>
-                                <input type="text" id="subject" class="form-control"
-                                    placeholder="e.g. CS101 Data Structures" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Teacher</label>
+                                <label>Teacher <span style="color:red">*</span></label>
                                 <select id="teacher_select" class="form-control" required
                                     onchange="checkReviewStatus()">
                                     <option value="">Select Teacher...</option>
                                     <!-- Dynamic -->
                                 </select>
                                 <div id="statusMsg"
-                                    style="margin-top:0.5rem; padding:0.5rem; background:#fee2e2; color:#ef4444; border-radius:4px; display:none; font-size:0.9em;">
+                                    style="margin-top:0.5rem; padding:0.75rem; background:#fee2e2; color:#ef4444; border-radius:6px; display:none; font-size:0.9em; border:1px solid #fca5a5;">
                                     <i class="ri-error-warning-line"></i> Reviews are currently <strong>CLOSED</strong>
                                     for this teacher.
                                 </div>
                             </div>
 
                             <div class="form-group">
-                                <label>Rating (1-5)</label>
-                                <div class="rating-options" id="ratingContainer">
-                                    <div class="rating-btn" onclick="setRating(1)">1</div>
-                                    <div class="rating-btn" onclick="setRating(2)">2</div>
-                                    <div class="rating-btn" onclick="setRating(3)">3</div>
-                                    <div class="rating-btn" onclick="setRating(4)">4</div>
-                                    <div class="rating-btn" onclick="setRating(5)">5</div>
+                                <label>Subject Code / Name <span style="color:red">*</span></label>
+                                <input type="text" id="subject" class="form-control"
+                                    placeholder="e.g. CS101 Data Structures" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Rating (1-5) <span style="color:red">*</span></label>
+                                <div style="font-size:0.85em; color:#666; margin-bottom:0.5rem;">How would you rate your
+                                    experience?</div>
+                                <div class="rating-options" id="ratingContainer"
+                                    style="justify-content:space-between; max-width:400px;">
+                                    <div class="rating-btn" onclick="setRating(1)" title="Poor">😠</div>
+                                    <div class="rating-btn" onclick="setRating(2)" title="Fair">😕</div>
+                                    <div class="rating-btn" onclick="setRating(3)" title="Average">😐</div>
+                                    <div class="rating-btn" onclick="setRating(4)" title="Good">🙂</div>
+                                    <div class="rating-btn" onclick="setRating(5)" title="Excellent">🤩</div>
+                                </div>
+                                <div
+                                    style="display:flex; justify-content:space-between; max-width:400px; font-size:0.75em; color:#999; margin-top:0.25rem; padding:0 10px;">
+                                    <span>Poor</span><span>Excellent</span>
                                 </div>
                                 <input type="hidden" id="ratingValue" required>
                             </div>
@@ -295,8 +328,8 @@
                             </div>
 
                             <button type="submit" id="submitBtn" class="btn btn-primary"
-                                style="width: 100%; margin-top:1rem;">
-                                Submit Feedback
+                                style="width: 100%; margin-top:1rem; padding:1rem; font-size:1.1em;">
+                                Submit Feedback <i class="ri-send-plane-fill"></i>
                             </button>
                         </form>
                     </div>
