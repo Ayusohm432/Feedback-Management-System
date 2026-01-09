@@ -225,10 +225,35 @@
 
                 <!-- 2. ANALYTICS -->
                 <section id="tab-analytics" class="tab-section">
-                    <div class="card">
-                        <h3>Performance Trend</h3>
-                        <div style="height: 350px; position: relative;">
-                            <canvas id="teacherTrendChart"></canvas>
+                    <div
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+                        <!-- Trend -->
+                        <div class="card">
+                            <h3>Performance Trend</h3>
+                            <div style="height: 300px; position: relative;">
+                                <canvas id="teacherTrendChart"></canvas>
+                            </div>
+                        </div>
+                        <!-- Rating Distribution -->
+                        <div class="card">
+                            <h3>Rating Distribution</h3>
+                            <div style="height: 300px; position: relative; display:flex; justify-content:center;">
+                                <canvas id="ratingDistributionChart"></canvas>
+                            </div>
+                        </div>
+                        <!-- Subject Performance -->
+                        <div class="card">
+                            <h3>Subject Performance (Avg)</h3>
+                            <div style="height: 300px; position: relative;">
+                                <canvas id="subjectPerformanceChart"></canvas>
+                            </div>
+                        </div>
+                        <!-- Session Analysis -->
+                        <div class="card">
+                            <h3>Session Analysis (Avg)</h3>
+                            <div style="height: 300px; position: relative;">
+                                <canvas id="sessionComparisonChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </section>

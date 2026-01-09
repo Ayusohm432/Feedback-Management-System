@@ -196,43 +196,138 @@ async function loadTeacherFeedback() {
     });
 }
 
-function loadAnalytics() {
-    const ctx = document.getElementById('teacherTrendChart');
-    if (!ctx) return;
+// Store chart instances to destroy them before re-rendering
+const chartInstances = {};
 
-    // Simulating a trend since we don't have historical snapshots easily without hefty queries.
-    // In a real app, we'd aggregate this on the backend or daily.
-    // For now, we'll pull recent 10 and show a "Recent Feedback Trend" line
+async function loadAnalytics() {
     const uid = firebase.auth().currentUser.uid;
-    db.collection('feedback').where('teacher_id', '==', uid).orderBy('submitted_at', 'asc').limitToLast(10).get().then(snap => {
-        const labels = [];
-        const data = [];
 
-        snap.forEach(d => {
-            labels.push(new Date(d.data().submitted_at.seconds * 1000).toLocaleDateString());
-            data.push(d.data().rating);
-        });
+    // Fetch ALL feedback for analytics
+    // Using simple get() as analytics doesn't need real-time snap usually, but ensures we have data
+    const snap = await db.collection('feedback').where('teacher_id', '==', uid).get();
 
-        new Chart(ctx, {
+    if (snap.empty) return; // TODO: Show empty state
+
+    let docs = [];
+    snap.forEach(d => docs.push(d.data()));
+
+    // --- PREPROCESS DATA ---
+
+    // 1. Trend (Sort by date asc)
+    const trendDocs = [...docs].sort((a, b) => (a.submitted_at?.seconds || 0) - (b.submitted_at?.seconds || 0));
+
+    // 2. Rating Distribution
+    const ratingCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+    // 3. Subject Performance
+    const subjectStats = {}; // { "Math": {sum: 10, count: 2} }
+
+    // 4. Session Analysis
+    const sessionStats = {}; // { "2023": {sum: 15, count: 3} }
+
+    trendDocs.forEach(d => {
+        // Ratings
+        if (d.rating >= 1 && d.rating <= 5) ratingCounts[d.rating]++;
+
+        // Subject
+        const subj = d.subject || 'Unknown';
+        if (!subjectStats[subj]) subjectStats[subj] = { sum: 0, count: 0 };
+        subjectStats[subj].sum += d.rating;
+        subjectStats[subj].count++;
+
+        // Session
+        const sess = d.session || 'Unknown';
+        if (!sessionStats[sess]) sessionStats[sess] = { sum: 0, count: 0 };
+        sessionStats[sess].sum += d.rating;
+        sessionStats[sess].count++;
+    });
+
+    // --- HELPER TO DESTROY OLD CHART ---
+    const resetChart = (id) => {
+        if (chartInstances[id]) {
+            chartInstances[id].destroy();
+        }
+    };
+
+    // --- RENDER 1: TREND (Line) ---
+    // Take last 20 for readability
+    const recentTrend = trendDocs.slice(-20);
+    resetChart('teacherTrendChart');
+    const ctx1 = document.getElementById('teacherTrendChart');
+    if (ctx1) {
+        chartInstances['teacherTrendChart'] = new Chart(ctx1, {
             type: 'line',
             data: {
-                labels: labels,
+                labels: recentTrend.map(d => d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : ''),
                 datasets: [{
-                    label: 'Rating (Recent 10)',
-                    data: data,
+                    label: 'Rating',
+                    data: recentTrend.map(d => d.rating),
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    tension: 0.4,
+                    tension: 0.3,
                     fill: true
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true, max: 5 }
-                }
-            }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 5 } } }
         });
-    });
+    }
+
+    // --- RENDER 2: DISTRIBUTION (Doughnut) ---
+    resetChart('ratingDistributionChart');
+    const ctx2 = document.getElementById('ratingDistributionChart');
+    if (ctx2) {
+        chartInstances['ratingDistributionChart'] = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'],
+                datasets: [{
+                    data: [ratingCounts[1], ratingCounts[2], ratingCounts[3], ratingCounts[4], ratingCounts[5]],
+                    backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+    // --- RENDER 3: SUBJECT PERFORMANCE (Bar) ---
+    const subjLabels = Object.keys(subjectStats);
+    const subjData = subjLabels.map(s => (subjectStats[s].sum / subjectStats[s].count).toFixed(2));
+
+    resetChart('subjectPerformanceChart');
+    const ctx3 = document.getElementById('subjectPerformanceChart');
+    if (ctx3) {
+        chartInstances['subjectPerformanceChart'] = new Chart(ctx3, {
+            type: 'bar',
+            data: {
+                labels: subjLabels,
+                datasets: [{
+                    label: 'Avg Rating',
+                    data: subjData,
+                    backgroundColor: '#8b5cf6'
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 5 } } }
+        });
+    }
+
+    // --- RENDER 4: SESSION ANALYSIS (Bar) ---
+    const sessLabels = Object.keys(sessionStats).sort(); // Sort sessions
+    const sessData = sessLabels.map(s => (sessionStats[s].sum / sessionStats[s].count).toFixed(2));
+
+    resetChart('sessionComparisonChart');
+    const ctx4 = document.getElementById('sessionComparisonChart');
+    if (ctx4) {
+        chartInstances['sessionComparisonChart'] = new Chart(ctx4, {
+            type: 'bar',
+            data: {
+                labels: sessLabels,
+                datasets: [{
+                    label: 'Avg Rating',
+                    data: sessData,
+                    backgroundColor: '#06b6d4'
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 5 } } }
+        });
+    }
 }
