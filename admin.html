@@ -139,11 +139,24 @@
                     <h2><i class="ri-upload-cloud-2-line"></i> Bulk Student Registration</h2>
                     <p style="color: var(--neutral-700); margin-bottom: 1rem;">Upload a CSV or Excel file to register
                         students in bulk. Required columns:
-                        <code>student_id, student_name, department, semester, email</code></p>
+                        <code>student_id, student_name, department, semester, email</code>
+                    </p>
 
                     <input type="file" id="csvFile" accept=".csv, .xlsx" style="margin-bottom: 1rem;">
                     <button class="btn btn-primary" onclick="handleBulkUpload()">Upload Data</button>
                     <div id="uploadStatus" style="margin-top: 1rem;"></div>
+                </div>
+
+                <!-- User Approvals Card -->
+                <div class="card">
+                    <h2><i class="ri-user-follow-line"></i> Pending User Approvals</h2>
+                    <p style="color: var(--neutral-700); margin-bottom: 1rem;">Review and approve new user
+                        registrations.</p>
+
+                    <div id="pendingList" style="display: flex; flex-direction: column; gap: 1rem;">
+                        <!-- Pending users will appear here -->
+                        <p>Loading pending users...</p>
+                    </div>
                 </div>
             </section>
 
@@ -161,6 +174,66 @@
     <script>
         // Auth Check
         checkAuth('admin');
+
+        // Load Pending Users
+        function loadPendingUsers() {
+            const container = document.getElementById('pendingList');
+            db.collection('users').where('status', '==', 'pending').onSnapshot(snap => {
+                container.innerHTML = "";
+                if (snap.empty) {
+                    container.innerHTML = "<p>No pending approvals.</p>";
+                    return;
+                }
+
+                snap.forEach(doc => {
+                    const u = doc.data();
+                    const item = document.createElement('div');
+                    item.style.border = "1px solid var(--neutral-300)";
+                    item.style.padding = "1rem";
+                    item.style.borderRadius = "var(--radius-md)";
+                    item.style.display = "flex";
+                    item.style.justifyContent = "space-between";
+                    item.style.alignItems = "center";
+                    item.style.background = "#fff";
+
+                    const info = `
+                      <div>
+                         <strong>${u.name}</strong> <span style="font-size:0.85em; color:var(--neutral-700); text-transform:uppercase;">(${u.role})</span><br>
+                         <small>${u.email}</small> <br>
+                         <small>${u.role === 'student' ? 'Reg: ' + u.regNum : 'Dept: ' + (u.department || u.deptId)}</small>
+                      </div>
+                    `;
+
+                    const actions = `
+                      <div style="display:flex; gap:0.5rem;">
+                         <button onclick="approveUser('${doc.id}')" style="background:#22c55e; color:white; border:none; padding:0.5rem 1rem; border-radius:0.25rem; cursor:pointer;">Approve</button>
+                         <button onclick="rejectUser('${doc.id}')" style="background:#ef4444; color:white; border:none; padding:0.5rem 1rem; border-radius:0.25rem; cursor:pointer;">Reject</button>
+                      </div>
+                    `;
+
+                    item.innerHTML = info + actions;
+                    container.appendChild(item);
+                });
+            });
+        }
+
+        window.approveUser = async (uid) => {
+            try {
+                await db.collection('users').doc(uid).update({ status: 'approved' });
+                alert("User Approved!");
+            } catch (e) { console.error(e); alert("Error approving user"); }
+        }
+
+        window.rejectUser = async (uid) => {
+            if (!confirm("Are you sure you want to reject this user?")) return;
+            try {
+                await db.collection('users').doc(uid).update({ status: 'rejected' });
+                alert("User Rejected!");
+            } catch (e) { console.error(e); alert("Error rejecting user"); }
+        }
+
+        // Initial Load
+        loadPendingUsers();
 
         // Bulk Upload Logic
         async function handleBulkUpload() {

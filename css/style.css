@@ -209,3 +209,7 @@ h4 {
   margin-top: 0.5rem;
   display: none;
 }
+
+a:hover {
+  text-decoration: underline;
+}
