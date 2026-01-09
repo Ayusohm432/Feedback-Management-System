@@ -83,7 +83,7 @@ function loadTeachers() {
     let query = db.collection('users').where('role', '==', 'teacher');
 
     // Strict Filter: Only teachers from student's department
-    // if(currentUserDoc.department) query = query.where('department', '==', currentUserDoc.department);
+    if (currentUserDoc.department) query = query.where('department', '==', currentUserDoc.department);
 
     query.get().then(snap => {
         let count = 0;
