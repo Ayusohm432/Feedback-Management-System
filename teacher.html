@@ -3,82 +3,299 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Teacher Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard - FMS</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            background: var(--neutral-900);
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand {
+            padding: 2rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-bottom: 1px solid var(--neutral-700);
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding: 1rem;
+            flex: 1;
+        }
+
+        .sidebar-link {
+            color: var(--neutral-300);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .sidebar-link:hover,
+        .sidebar-link.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .top-bar {
+            background: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .profile-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            cursor: pointer;
+        }
+
+        .profile-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-light);
+            object-fit: cover;
+        }
+
+        .tab-section {
+            display: none;
+        }
+
+        .tab-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-light);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .time-badge {
+            background: #e0f2fe;
+            color: var(--primary);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-family: monospace;
+            font-weight: 700;
+        }
+
+        .feedback-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .feedback-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
 </head>
 
 <body>
-    <div class="container" style="padding-top: 2rem;">
-        <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-            <h1>My Performance</h1>
-            <button class="btn btn-outline" onclick="logout()">Logout</button>
-        </header>
 
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
-            <!-- Main Chart -->
-            <div class="card">
-                <h3>Feedback Trends</h3>
-                <canvas id="ratingsChart"></canvas>
-            </div>
+    <div class="dashboard-grid">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">FMS Teacher</div>
+            <ul class="sidebar-menu">
+                <li><a class="sidebar-link active" onclick="switchTab('overview', this)"><i
+                            class="ri-dashboard-line"></i> Overview</a></li>
+                <li><a class="sidebar-link" onclick="switchTab('analytics', this)"><i
+                            class="ri-bar-chart-groupped-line"></i> Analytics</a></li>
+                <li><a class="sidebar-link" onclick="switchTab('feedback', this)"><i class="ri-feedback-line"></i> My
+                        Feedback</a></li>
+                <li><a class="sidebar-link" onclick="switchTab('profile', this)"><i class="ri-user-settings-line"></i>
+                        Profile</a></li>
+                <li style="margin-top: auto;"><a class="sidebar-link" onclick="logout()"><i
+                            class="ri-logout-box-r-line"></i> Logout</a></li>
+            </ul>
+        </aside>
 
-            <!-- Recent Comments -->
-            <div class="card">
-                <h3>Recent Comments</h3>
-                <div id="comments-list" style="margin-top: 1rem; max-height: 400px; overflow-y: auto;">
-                    <!-- Dynamic Content -->
-                    <p style="color: var(--neutral-700); font-style: italic;">Loading comments...</p>
+        <!-- Main Content -->
+        <main style="padding: 0; background: #f8fafc; overflow-y: auto;">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div>
+                    <h2 id="pageTitle" style="margin:0;">Overview</h2>
+                    <small style="color:#666;">Welcome back, Professor</small>
+                </div>
+
+                <div class="time-badge" id="realtime-clock">--:--:--</div>
+
+                <div class="profile-menu" onclick="switchTab('profile', document.querySelectorAll('.sidebar-link')[3])">
+                    <div style="text-align: right;">
+                        <div style="font-weight: 600;" id="t-name-display">Teacher</div>
+                        <small style="color: var(--neutral-700);" id="t-email-display">@fms.local</small>
+                    </div>
+                    <img src="https://ui-avatars.com/api/?name=Teacher&background=0D8ABC&color=fff" class="profile-img"
+                        id="t-avatar">
                 </div>
             </div>
-        </div>
+
+            <div style="padding: 0 2rem 2rem;">
+
+                <!-- 1. OVERVIEW -->
+                <section id="tab-overview" class="tab-section active">
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ri-star-smile-line"></i></div>
+                            <div>
+                                <h3 id="stat-avg-rating">0.0</h3>
+                                <p>Avg Rating</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ri-message-3-line"></i></div>
+                            <div>
+                                <h3 id="stat-total-reviews">0</h3>
+                                <p>Total Reviews</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ri-calendar-check-line"></i></div>
+                            <div>
+                                <h3 id="stat-status">Active</h3>
+                                <p>Review Status</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3><i class="ri-history-line"></i> Recent Feedback</h3>
+                        <div id="recent-feedback-list" style="margin-top:1rem;">Loading...</div>
+                    </div>
+                </section>
+
+                <!-- 2. ANALYTICS -->
+                <section id="tab-analytics" class="tab-section">
+                    <div class="card">
+                        <h3>Performance Trend</h3>
+                        <div style="height: 350px; position: relative;">
+                            <canvas id="teacherTrendChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. FEEDBACK FILTER -->
+                <section id="tab-feedback" class="tab-section">
+                    <div class="card" style="margin-bottom:1.5rem;">
+                        <h3>Filter Feedback</h3>
+                        <div style="display:flex; gap:1rem; margin-top:1rem; flex-wrap:wrap;">
+                            <select id="tfFilterRating" onchange="loadTeacherFeedback()"
+                                style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <option value="all">All Ratings</option>
+                                <option value="5">5 Stars</option>
+                                <option value="4">4 Stars</option>
+                                <option value="3">3 Stars</option>
+                                <option value="2">2 Stars</option>
+                                <option value="1">1 Star</option>
+                            </select>
+                            <button class="btn btn-outline" onclick="loadTeacherFeedback()"><i
+                                    class="ri-refresh-line"></i></button>
+                        </div>
+                    </div>
+                    <div id="teacher-feedback-container" class="feedback-grid">Loading...</div>
+                </section>
+
+                <!-- 4. PROFILE -->
+                <section id="tab-profile" class="tab-section">
+                    <div class="card">
+                        <h3>My Profile</h3>
+                        <div style="display:grid; gap:1rem; margin-top:1rem; max-width:500px;">
+                            <div><label style="font-size:0.85em; font-weight:600; color:#666;">Name</label>
+                                <input type="text" id="pName" class="form-control" disabled
+                                    style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                            </div>
+                            <div><label style="font-size:0.85em; font-weight:600; color:#666;">Email</label>
+                                <input type="text" id="pEmail" class="form-control" disabled
+                                    style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                            </div>
+                            <div><label style="font-size:0.85em; font-weight:600; color:#666;">Department ID</label>
+                                <input type="text" id="pDept" class="form-control" disabled
+                                    style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                            </div>
+                            <div style="margin-top:1rem; padding:1rem; background:#f0f9ff; border-radius:4px;">
+                                <small style="color:#0369a1;">To update your profile or password, please contact your
+                                    Department Administrator.</small>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
     </div>
 
+    <!-- Dependencies -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="js/firebase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/teacher.js"></script>
     <script>
         checkAuth('teacher');
-
-        // Chart Setup
-        const ctx = document.getElementById('ratingsChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-                datasets: [{
-                    label: 'Average Rating',
-                    data: [3.5, 3.8, 4.0, 4.2, 4.5],
-                    borderColor: 'hsl(220, 70%, 50%)',
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: { beginAtZero: true, max: 5 }
-                }
-            }
-        });
-
-        // Load Real Data
-        const teacherId = "T01"; // Mock ID for demo
-        db.collection("feedback").where("teacher_id", "==", teacherId).limit(10).onSnapshot(snap => {
-            const list = document.getElementById("comments-list");
-            list.innerHTML = "";
-            if (snap.empty) { list.innerHTML = "No feedback yet."; return; }
-
-            snap.forEach(doc => {
-                const data = doc.data();
-                const div = document.createElement("div");
-                div.style.padding = "0.5rem";
-                div.style.borderBottom = "1px solid var(--neutral-300)";
-                div.innerHTML = `<strong>${data.rating}/5</strong> <span style="color: #666">${data.subject}</span><br>${data.comments}`;
-                list.appendChild(div);
-            });
-        });
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('realtime-clock').innerText = now.toLocaleTimeString();
+        }, 1000);
     </script>
 </body>
 
