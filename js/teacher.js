@@ -71,55 +71,129 @@ async function loadTeacherFeedback() {
     const uid = firebase.auth().currentUser.uid;
     const container = document.getElementById('teacher-feedback-container');
     const listContainer = document.getElementById('recent-feedback-list'); // For overview
+    const sessionSelect = document.getElementById('tfFilterSession');
+    const subjectSelect = document.getElementById('tfFilterSubject');
 
     if (container) container.innerHTML = 'Loading...';
 
-    // Client-side filtering as usual
-    const snap = await db.collection('feedback').where('teacher_id', '==', uid).orderBy('submitted_at', 'desc').limit(50).get();
+    // Fetch ALL feedback for this teacher (client-side sort/filter to avoid index issues)
+    // using onSnapshot for real-time
+    db.collection('feedback').where('teacher_id', '==', uid).onSnapshot(snap => {
+        if (snap.empty) {
+            if (container) container.innerHTML = "No feedback yet.";
+            if (listContainer) listContainer.innerHTML = "No recent feedback.";
+            return;
+        }
 
-    if (snap.empty) {
-        if (container) container.innerHTML = "No feedback yet.";
-        if (listContainer) listContainer.innerHTML = "No recent feedback.";
-        return;
-    }
+        // 1. Convert to Array and Collect Filter Options
+        let allFeedback = [];
+        let sessionsSet = new Set();
+        let subjectsSet = new Set();
 
-    const filterRating = document.getElementById('tfFilterRating') ? document.getElementById('tfFilterRating').value : 'all';
-    let html = '';
-    let recentHtml = '';
-    let count = 0;
+        snap.forEach(doc => {
+            const d = doc.data();
+            allFeedback.push(d);
+            if (d.session) sessionsSet.add(d.session);
+            if (d.subject) subjectsSet.add(d.subject);
+        });
 
-    snap.forEach(doc => {
-        const d = doc.data();
-        const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
-        const color = d.rating < 3 ? '#ef4444' : (d.rating >= 4 ? '#10b981' : '#f59e0b');
-        const stars = '★'.repeat(d.rating) + '☆'.repeat(5 - d.rating);
+        // 2. Sort by Date Descending (Client-Side)
+        allFeedback.sort((a, b) => {
+            const tA = a.submitted_at ? a.submitted_at.seconds : 0;
+            const tB = b.submitted_at ? b.submitted_at.seconds : 0;
+            return tB - tA;
+        });
 
-        // Filter
-        let show = true;
-        if (filterRating !== 'all' && d.rating.toString() !== filterRating) show = false;
+        // 3. Populate Session Filter
+        if (sessionSelect && sessionSelect.children.length <= 1) {
+            const currentSel = sessionSelect.value;
+            // Remove old options (keep 'All')
+            while (sessionSelect.options.length > 1) { sessionSelect.remove(1); }
+            Array.from(sessionsSet).sort().reverse().forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.innerText = s;
+                sessionSelect.appendChild(opt);
+            });
+            sessionSelect.value = currentSel;
+        }
 
-        const card = `
-        <div class="feedback-card">
-            <div style="padding:1rem; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:600; font-size:0.9em; color:#666;">${d.subject || 'General'}</span>
-                    <div style="color:${color}; font-weight:bold;">${stars}</div>
-            </div>
-            <div style="padding:1rem;">
-                <p style="color:#444; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
-            </div>
-            <div style="background:#fafafa; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; display:flex; justify-content:space-between; font-size:0.8em; color:#888;">
-                <span>Session: ${d.session || 'N/A'}</span>
-                <span>${date}</span>
-            </div>
-        </div>`;
+        // 4. Populate Subject Filter
+        if (subjectSelect && subjectSelect.children.length <= 1) {
+            const currentSel = subjectSelect.value;
+            while (subjectSelect.options.length > 1) { subjectSelect.remove(1); }
+            Array.from(subjectsSet).sort().forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.innerText = s;
+                subjectSelect.appendChild(opt);
+            });
+            subjectSelect.value = currentSel;
+        }
 
-        if (show) html += card;
-        if (count < 3) recentHtml += card; // Top 3 for overview
-        count++;
+        // 5. Get Filter Values
+        const filterRating = document.getElementById('tfFilterRating') ? document.getElementById('tfFilterRating').value : 'all';
+        const filterSession = sessionSelect ? sessionSelect.value : 'all';
+        const filterSubject = subjectSelect ? subjectSelect.value : 'all';
+
+        let html = '';
+        let recentHtml = '';
+        let count = 0;
+
+        // 6. Generate HTML
+        allFeedback.forEach(d => {
+            // Apply Filters
+            if (filterRating !== 'all' && d.rating.toString() !== filterRating) return;
+            if (filterSession !== 'all' && d.session !== filterSession) return;
+            if (filterSubject !== 'all' && d.subject !== filterSubject) return;
+
+            const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
+            const color = d.rating < 3 ? '#ef4444' : (d.rating >= 4 ? '#10b981' : '#f59e0b');
+            const stars = '★'.repeat(d.rating) + '☆'.repeat(5 - d.rating);
+
+            const card = `
+            <div class="feedback-card">
+                <div style="padding:1rem; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:600; font-size:0.9em; color:#666;">${d.subject || 'General'}</span>
+                        <div style="color:${color}; font-weight:bold;">${stars}</div>
+                </div>
+                <div style="padding:1rem;">
+                    <p style="color:#444; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
+                </div>
+                <div style="background:#fafafa; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; display:flex; justify-content:space-between; font-size:0.8em; color:#888;">
+                    <span>Session: ${d.session || 'N/A'}</span>
+                    <span>${date}</span>
+                </div>
+            </div>`;
+
+            html += card;
+        });
+
+        // Recent Activity (Top 3 of ALL, ignoring filters for overview, or maybe we want filtered? Logic: Dashboard Overview usually implies global recent)
+        // Let's stick to Global Recent for the overview list
+        const overviewTop3 = allFeedback.slice(0, 3);
+        overviewTop3.forEach(d => {
+            const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
+            const color = d.rating < 3 ? '#ef4444' : (d.rating >= 4 ? '#10b981' : '#f59e0b');
+            const stars = '★'.repeat(d.rating) + '☆'.repeat(5 - d.rating);
+            recentHtml += `
+            <div class="feedback-card" style="margin-bottom:1rem;">
+                <div style="padding:1rem; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:600; font-size:0.9em; color:#666;">${d.subject || 'General'}</span>
+                        <div style="color:${color}; font-weight:bold;">${stars}</div>
+                </div>
+                <div style="padding:1rem;">
+                    <p style="color:#444; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
+                </div>
+                 <div style="background:#fafafa; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; font-size:0.8em; color:#888;">
+                    <span>${date}</span>
+                </div>
+            </div>`;
+        });
+
+        if (container) container.innerHTML = html || '<p style="grid-column:1/-1; text-align:center; color:#666;">No feedback matches filters.</p>';
+        if (listContainer) listContainer.innerHTML = recentHtml || '<p style="color:#666;">No recent feedback.</p>';
     });
-
-    if (container) container.innerHTML = html || 'No feedback matches filters.';
-    if (listContainer) listContainer.innerHTML = recentHtml;
 }
 
 function loadAnalytics() {
