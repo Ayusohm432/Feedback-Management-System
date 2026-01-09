@@ -1,0 +1,14 @@
+
+<!DOCTYPE html><html><body>
+<h2>Admin Dashboard</h2>
+<button onclick="add()">Add Student</button>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase.js"></script>
+<script>
+function add(){
+ db.collection("students").add({id:"S1",name:"Demo",dept:"CSE"});
+ alert("Added");
+}
+</script>
+</body></html>

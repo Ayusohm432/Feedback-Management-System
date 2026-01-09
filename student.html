@@ -1,0 +1,25 @@
+
+<!DOCTYPE html><html><body>
+<h2>Student Dashboard</h2>
+<form id="f">
+<input id="subject" placeholder="Subject"><br>
+<input id="teacher" placeholder="Teacher"><br>
+<select id="rating"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select><br>
+<textarea id="comments"></textarea><br>
+<button>Submit</button>
+</form>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="js/firebase.js"></script>
+<script>
+f.onsubmit=async e=>{
+ e.preventDefault();
+ await db.collection("feedback").add({
+  subject:subject.value,teacher:teacher.value,
+  rating:rating.value,comments:comments.value
+ });
+ alert("Submitted");
+}
+</script>
+</body></html>
