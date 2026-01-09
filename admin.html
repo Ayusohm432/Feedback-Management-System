@@ -4,30 +4,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Feedback System</title>
+    <title>Admin Dashboard - FMS</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .dashboard-grid {
             display: grid;
-            grid-template-columns: 250px 1fr;
+            grid-template-columns: 260px 1fr;
             min-height: 100vh;
         }
 
         .sidebar {
             background: var(--neutral-900);
             color: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand {
             padding: 2rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-bottom: 1px solid var(--neutral-700);
         }
 
         .sidebar-menu {
             list-style: none;
-            margin-top: 2rem;
-        }
-
-        .sidebar-menu li {
-            margin-bottom: 1rem;
+            padding: 1rem;
+            flex: 1;
         }
 
         .sidebar-link {
@@ -35,10 +41,11 @@
             text-decoration: none;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem;
+            gap: 0.75rem;
+            padding: 1rem;
             border-radius: var(--radius-md);
-            transition: background 0.2s;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
         }
 
         .sidebar-link:hover,
@@ -47,16 +54,42 @@
             color: white;
         }
 
-        .main-content {
-            padding: 2rem;
-            overflow-y: auto;
+        .top-bar {
+            background: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
+        .profile-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            cursor: pointer;
+        }
+
+        .profile-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-light);
+            object-fit: cover;
+        }
+
+        /* Tab Content Logic */
+        .tab-section {
+            display: none;
+        }
+
+        .tab-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
         }
 
         .stat-card {
@@ -67,6 +100,8 @@
             display: flex;
             align-items: center;
             gap: 1rem;
+            flex: 1;
+            min-width: 200px;
         }
 
         .stat-icon {
@@ -80,6 +115,228 @@
             justify-content: center;
             font-size: 1.5rem;
         }
+
+        .stats-row {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background: white;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        th,
+        td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--neutral-300);
+        }
+
+        th {
+            background: var(--neutral-200);
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: var(--neutral-200);
+        }
+
+        .pill {
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+
+        .pill-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .pill-approved {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .pill-rejected {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .sub-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--neutral-300);
+        }
+
+        .sub-tab {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .sub-tab.active {
+            border-color: var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Search Bar */
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: var(--neutral-100);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            border: 1px solid var(--neutral-300);
+            width: 300px;
+        }
+
+        .search-bar input {
+            border: none;
+            background: transparent;
+            outline: none;
+            margin-left: 0.5rem;
+            width: 100%;
+        }
+
+        /* Chart Canvas */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        /* Activity Feed */
+        .activity-item {
+            display: flex;
+            gap: 1rem;
+            padding: 1rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .activity-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e0f2fe;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        /* Switch Toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+            vertical-align: middle;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+        }
+
+        input:checked+.slider {
+            background-color: #10b981;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(14px);
+        }
+
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
+
+        /* Feedback Grid */
+        .feedback-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .feedback-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #eee;
+        }
+
+        .feedback-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .feedback-header {
+            padding: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .feedback-body {
+            padding: 1rem;
+        }
+
+        .feedback-footer {
+            padding: 0.75rem 1rem;
+            background: #f9fafb;
+            font-size: 0.85em;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .rating-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
     </style>
 </head>
 
@@ -88,78 +345,358 @@
     <div class="dashboard-grid">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <h2>FMS Admin</h2>
+            <div class="brand">FMS Admin</div>
             <ul class="sidebar-menu">
-                <li><a href="#" class="sidebar-link active"><i class="ri-dashboard-line"></i> Dashboard</a></li>
-                <li><a href="#" class="sidebar-link"><i class="ri-user-add-line"></i> Students</a></li>
-                <li><a href="#" class="sidebar-link"><i class="ri-user-star-line"></i> Teachers</a></li>
-                <li><a href="#" class="sidebar-link"><i class="ri-building-line"></i> Departments</a></li>
-                <li><a href="#" class="sidebar-link" onclick="logout()"><i class="ri-logout-box-line"></i> Logout</a>
-                </li>
+                <li><a href="#" class="sidebar-link active" onclick="switchTab('dashboard', this)"><i
+                            class="ri-dashboard-3-line"></i> Dashboard</a></li>
+                <li><a href="#" class="sidebar-link" onclick="switchTab('analytics', this)"><i
+                            class="ri-bar-chart-grouped-line"></i> Analytics</a></li>
+                <li><a href="#" class="sidebar-link" onclick="switchTab('feedback', this)"><i
+                            class="ri-feedback-line"></i> Feedback</a></li>
+                <li><a href="#" class="sidebar-link" onclick="switchTab('approvals', this)"><i
+                            class="ri-user-follow-line"></i> Approvals</a></li>
+                <li><a href="#" class="sidebar-link" onclick="switchTab('students', this)"><i class="ri-group-line"></i>
+                        Students</a></li>
+                <li><a href="#" class="sidebar-link" onclick="switchTab('teachers', this)"><i class="ri-group-line"></i>
+                        Teachers</a></li>
+                <li><a href="#" class="sidebar-link" onclick="switchTab('departments', this)"><i
+                            class="ri-building-line"></i> Departments</a></li>
+                <li><a href="#" class="sidebar-link" onclick="switchTab('profile', this)"><i
+                            class="ri-user-settings-line"></i> Profile</a></li>
+                <li style="margin-top: auto;"><a href="#" class="sidebar-link" onclick="logout()"><i
+                            class="ri-logout-box-r-line"></i> Logout</a></li>
             </ul>
         </aside>
 
         <!-- Main Content -->
-        <main class="main-content">
-            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                <h1>Overview</h1>
-                <div class="user-profile">
-                    <span>Welcome, Admin</span>
-                </div>
-            </header>
+        <main style="padding: 0; background: #f8fafc; overflow-y: auto;">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <h2 id="pageTitle">Overview</h2>
 
-            <!-- Stats -->
-            <div class="stats-row">
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="ri-group-line"></i></div>
-                    <div>
-                        <h3>1,250</h3>
-                        <p>Total Students</p>
-                    </div>
+                <div class="search-bar">
+                    <i class="ri-search-line" style="color: var(--neutral-500);"></i>
+                    <input type="text" id="globalSearch" placeholder="Search users..."
+                        onkeyup="handleGlobalSearch(this.value)">
                 </div>
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="ri-user-tie-line"></i></div>
-                    <div>
-                        <h3>85</h3>
-                        <p>Teachers</p>
+
+                <div class="profile-menu"
+                    onclick="switchTab('profile', document.querySelector('.sidebar-menu a[onclick*=\'profile\']'))">
+                    <div style="text-align: right;">
+                        <div style="font-weight: 600;" id="top-bar-name">Admin User</div>
+                        <small style="color: var(--neutral-700);" id="top-bar-email">admin@fms.local</small>
                     </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="ri-feedback-line"></i></div>
-                    <div>
-                        <h3>3,420</h3>
-                        <p>Feedbacks</p>
-                    </div>
+                    <img src="https://ui-avatars.com/api/?name=Admin+User&background=0D8ABC&color=fff"
+                        class="profile-img" alt="Profile" id="top-bar-avatar">
                 </div>
             </div>
 
-            <!-- Actions Area -->
-            <section>
-                <div class="card" style="margin-bottom: 2rem;">
-                    <h2><i class="ri-upload-cloud-2-line"></i> Bulk Student Registration</h2>
-                    <p style="color: var(--neutral-700); margin-bottom: 1rem;">Upload a CSV or Excel file to register
-                        students in bulk. Required columns:
-                        <code>student_id, student_name, department, semester, email</code>
-                    </p>
+            <div style="padding: 0 2rem 2rem;">
 
-                    <input type="file" id="csvFile" accept=".csv, .xlsx" style="margin-bottom: 1rem;">
-                    <button class="btn btn-primary" onclick="handleBulkUpload()">Upload Data</button>
-                    <div id="uploadStatus" style="margin-top: 1rem;"></div>
-                </div>
-
-                <!-- User Approvals Card -->
-                <div class="card">
-                    <h2><i class="ri-user-follow-line"></i> Pending User Approvals</h2>
-                    <p style="color: var(--neutral-700); margin-bottom: 1rem;">Review and approve new user
-                        registrations.</p>
-
-                    <div id="pendingList" style="display: flex; flex-direction: column; gap: 1rem;">
-                        <!-- Pending users will appear here -->
-                        <p>Loading pending users...</p>
+                <!-- 1. DASHBOARD TAB -->
+                <section id="tab-dashboard" class="tab-section active">
+                    <div class="stats-row">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ri-group-line"></i></div>
+                            <div>
+                                <h3 id="count-student">--</h3>
+                                <p>Students</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ri-user-tie-line"></i></div>
+                            <div>
+                                <h3 id="count-teacher">--</h3>
+                                <p>Teachers</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ri-building-line"></i></div>
+                            <div>
+                                <h3 id="count-dept">--</h3>
+                                <p>Departments</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ri-chat-check-line"></i></div>
+                            <div>
+                                <h3 id="count-pending">--</h3>
+                                <p>Pending User Approvals</p>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </section>
 
+                    <!-- Recent Activity & Quick Actions -->
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                        <div class="card">
+                            <h3><i class="ri-history-line"></i> Recent Activity</h3>
+                            <div id="activity-feed">
+                                <p style="color:#666; margin-top:1rem;">Loading activity...</p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3><i class="ri-flashlight-line"></i> Quick Actions</h3>
+                            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+                                <button class="btn btn-outline" style="justify-content: start;"
+                                    onclick="switchTab('students', document.querySelectorAll('.sidebar-link')[4])">
+                                    <i class="ri-user-add-line"></i> Add New Student
+                                </button>
+                                <button class="btn btn-outline" style="justify-content: start;"
+                                    onclick="switchTab('teachers', document.querySelectorAll('.sidebar-link')[5])">
+                                    <i class="ri-user-tie-line"></i> Add/Manage Teachers
+                                </button>
+                                <button class="btn btn-outline" style="justify-content: start;"
+                                    onclick="downloadSample()">
+                                    <i class="ri-file-download-line"></i> Download Student CSV
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. ANALYTICS TAB -->
+                <section id="tab-analytics" class="tab-section">
+                    <div class="stats-row">
+                        <div class="card" style="flex:2;">
+                            <h3>Department Performance</h3>
+                            <div class="chart-container">
+                                <canvas id="deptChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card" style="flex:1;">
+                            <h3>Participation Rate</h3>
+                            <div class="chart-container">
+                                <canvas id="participationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. FEEDBACK TAB (UPDATED) -->
+                <section id="tab-feedback" class="tab-section">
+                    <div
+                        style="margin-bottom: 1.5rem; display: flex; gap: 1rem; background: white; padding: 1rem; border-radius: 8px; box-shadow: var(--shadow-sm); flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85em; font-weight: bold; color: #666;"> Department</label>
+                            <select id="fbFilterDept" onchange="loadFeedbackExplorer()"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="all">All Departments</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85em; font-weight: bold; color: #666;"> Teacher</label>
+                            <select id="fbFilterTeacher" onchange="loadFeedbackExplorer()"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="all">All Teachers</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85em; font-weight: bold; color: #666;"> Rating</label>
+                            <select id="fbFilterRating" onchange="loadFeedbackExplorer()"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="all">All Ratings</option>
+                                <option value="low">Low (< 3 Stars)</option>
+                                <option value="high">High (> 3 Stars)</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-outline" onclick="loadFeedbackExplorer()" title="Refresh"><i
+                                    class="ri-refresh-line"></i></button>
+                        </div>
+                    </div>
+
+                    <div id="feedback-explorer-container" class="feedback-grid">
+                        <!-- Cards injection -->
+                        Loading...
+                    </div>
+                </section>
+
+                <!-- 4. APPROVALS TAB -->
+                <section id="tab-approvals" class="tab-section">
+                    <div class="card">
+                        <h3>Pending Requests</h3>
+                        <div class="sub-tabs" style="margin-top: 1rem;">
+                            <div class="sub-tab active" onclick="filterApprovals('all', this)">All</div>
+                            <div class="sub-tab" onclick="filterApprovals('student', this)">Students</div>
+                            <div class="sub-tab" onclick="filterApprovals('teacher', this)">Teachers</div>
+                            <div class="sub-tab" onclick="filterApprovals('department', this)">Departments</div>
+                        </div>
+                        <div id="approvals-list-container"></div>
+                    </div>
+                </section>
+
+                <!-- 5. STUDENTS TAB -->
+                <section id="tab-students" class="tab-section">
+                    <!-- Add Forms ... (Same as before) -->
+                    <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                        <div class="card" style="flex: 1;">
+                            <h3><i class="ri-user-add-line"></i> Add Single Student (Create Account)</h3>
+                            <form onsubmit="handleAddSingleStudent(event)"
+                                style="margin-top: 1rem; display: grid; gap: 1rem;">
+                                <input type="text" id="addRegNum" placeholder="Reg Number" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="text" id="addName" placeholder="Full Name" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="text" id="addDept" placeholder="Dept Code (e.g. CSE)" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="text" id="addSession" placeholder="Session (e.g. 2023-27)" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="password" id="addPassword" placeholder="Password" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <button class="btn btn-primary">Create User</button>
+                            </form>
+                        </div>
+                        <div class="card" style="flex: 1;">
+                            <h3><i class="ri-file-excel-2-line"></i> Bulk Upload (Full Accounts)</h3>
+                            <p style="font-size: 0.9em; margin-bottom: 0.5rem;">Cols:
+                                <code>student_id, name, department, session, password</code>
+                            </p>
+                            <button class="btn btn-outline" style="font-size: 0.8rem; margin-bottom: 1rem;"
+                                onclick="downloadSample()">Download Template</button>
+                            <input type="file" id="csvFile" accept=".csv, .xlsx" style="width: 100%;">
+                            <button class="btn btn-primary" onclick="handleBulkUpload()"
+                                style="margin-top: 1rem;">Process Upload</button>
+                            <div id="uploadStatus"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <h3>Registered Students</h3>
+                            <select id="studentDeptFilter" onchange="filterStudentList()"
+                                style="padding:0.5rem; border-radius:0.5rem; border:1px solid #ccc;">
+                                <option value="all">All Departments</option>
+                            </select>
+                        </div>
+                        <div id="students-table-container">Loading...</div>
+                    </div>
+                </section>
+
+                <!-- 6. TEACHERS TAB -->
+                <section id="tab-teachers" class="tab-section">
+                    <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                        <!-- Add Forms ... (Same as before) -->
+                        <div class="card" style="flex: 1;">
+                            <h3><i class="ri-user-add-line"></i> Add Single Teacher (Create Account)</h3>
+                            <form onsubmit="handleAddSingleTeacher(event)"
+                                style="margin-top: 1rem; display: grid; gap: 1rem;">
+                                <input type="text" id="addTeacherName" placeholder="Full Name" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="email" id="addTeacherEmail" placeholder="Email" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="text" id="addTeacherDept" placeholder="Dept Code" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="password" id="addTeacherPassword" placeholder="Password" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <button class="btn btn-primary">Create Teacher</button>
+                            </form>
+                        </div>
+                        <div class="card" style="flex: 1;">
+                            <h3><i class="ri-file-excel-2-line"></i> Bulk Upload (Full Accounts)</h3>
+                            <p style="font-size: 0.9em; margin-bottom: 0.5rem;">Cols:
+                                <code>name, email, department, password</code>
+                            </p>
+                            <button class="btn btn-outline" style="font-size: 0.8rem; margin-bottom: 1rem;"
+                                onclick="downloadTeacherSample()">Download Template</button>
+                            <input type="file" id="teacherCsvFile" accept=".csv, .xlsx" style="width: 100%;">
+                            <button class="btn btn-primary" onclick="handleBulkTeacherUpload()"
+                                style="margin-top: 1rem;">Process Upload</button>
+                            <div id="teacherUploadStatus"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <h3>Registered Teachers</h3>
+                            <select id="teacherDeptFilter" onchange="filterTeacherList()"
+                                style="padding:0.5rem; border-radius:0.5rem; border:1px solid #ccc;">
+                                <option value="all">All Departments</option>
+                            </select>
+                        </div>
+                        <div id="teachers-table-container">Loading...</div>
+                    </div>
+                </section>
+
+                <!-- 7. DEPARTMENTS TAB -->
+                <section id="tab-departments" class="tab-section">
+                    <!-- Add Forms ... (Same as before) -->
+                    <div style="margin-bottom: 2rem;">
+                        <div class="card">
+                            <h3><i class="ri-building-line"></i> Add New Department (Create Account)</h3>
+                            <form onsubmit="handleAddSingleDept(event)"
+                                style="margin-top: 1rem; display: grid; grid-template-columns: 1fr 2fr 1fr 1fr auto; gap: 1rem; align-items: center;">
+                                <input type="text" id="addDeptId" placeholder="Dept ID (CSE-01)" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="text" id="addDeptName" placeholder="Dept Name" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="text" id="addDeptSession" placeholder="Session" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="password" id="addDeptPassword" placeholder="Password" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <button class="btn btn-primary">Create</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Registered Departments</h3>
+                        <div id="depts-table-container">Loading...</div>
+                    </div>
+                </section>
+
+                <!-- 8. PROFILE TAB -->
+                <section id="tab-profile" class="tab-section">
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+                        <div class="card" style="text-align: center;">
+                            <img src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff&size=128"
+                                id="profile-avatar"
+                                style="width: 120px; height: 120px; border-radius: 50%; margin-bottom: 1rem; border: 4px solid var(--primary-light);">
+                            <h2 id="profile-name" style="margin-bottom: 0.5rem;">Loading...</h2>
+                            <span class="pill pill-approved" id="profile-role">ADMIN</span>
+                            <div style="margin-top: 2rem; text-align: left;">
+                                <p style="margin-bottom: 0.5rem;"><i class="ri-mail-line"
+                                        style="margin-right: 0.5rem; color: var(--primary);"></i> <span
+                                        id="profile-email">--</span></p>
+                                <p style="margin-bottom: 0.5rem;"><i class="ri-shield-user-line"
+                                        style="margin-right: 0.5rem; color: var(--primary);"></i> Status: <span
+                                        id="profile-status" style="font-weight: 600; color: #16a34a;">Active</span></p>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3><i class="ri-user-settings-line"></i> Account Details</h3>
+                            <div style="margin-top: 1.5rem; display: grid; gap: 1.5rem;">
+                                <div
+                                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
+                                    <div><small style="color: #666; display: block; margin-bottom: 0.25rem;">User ID
+                                            (UID)</small><code id="profile-uid"
+                                            style="background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 4px;">--</code>
+                                    </div>
+                                    <div><small
+                                            style="color: #666; display: block; margin-bottom: 0.25rem;">Department</small><strong
+                                            id="profile-dept">Administration</strong></div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                                    <div><small style="color: #666; display: block; margin-bottom: 0.25rem;">Member
+                                            Since</small><strong id="profile-joined">--</strong></div>
+                                    <div><small style="color: #666; display: block; margin-bottom: 0.25rem;">Last
+                                            Login</small><strong id="profile-last-login">Just Now</strong></div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #eee;">
+                                <h3>Update Info</h3>
+                                <form onsubmit="handleUpdateProfile(event)"
+                                    style="margin-top: 1rem; display: grid; gap: 1rem;">
+                                    <input type="text" id="editProfileName" placeholder="Update Display Name"
+                                        style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                    <button class="btn btn-primary" style="width: fit-content;">Save Changes</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
         </main>
     </div>
 
@@ -171,142 +708,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="js/firebase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/admin.js"></script>
     <script>
-        // Auth Check
         checkAuth('admin');
-
-        // Load Pending Users
-        function loadPendingUsers() {
-            const container = document.getElementById('pendingList');
-            db.collection('users').where('status', '==', 'pending').onSnapshot(snap => {
-                container.innerHTML = "";
-                if (snap.empty) {
-                    container.innerHTML = "<p>No pending approvals.</p>";
-                    return;
-                }
-
-                snap.forEach(doc => {
-                    const u = doc.data();
-                    const item = document.createElement('div');
-                    item.style.border = "1px solid var(--neutral-300)";
-                    item.style.padding = "1rem";
-                    item.style.borderRadius = "var(--radius-md)";
-                    item.style.display = "flex";
-                    item.style.justifyContent = "space-between";
-                    item.style.alignItems = "center";
-                    item.style.background = "#fff";
-
-                    const info = `
-                      <div>
-                         <strong>${u.name}</strong> <span style="font-size:0.85em; color:var(--neutral-700); text-transform:uppercase;">(${u.role})</span><br>
-                         <small>${u.email}</small> <br>
-                         <small>${u.role === 'student' ? 'Reg: ' + u.regNum : 'Dept: ' + (u.department || u.deptId)}</small>
-                      </div>
-                    `;
-
-                    const actions = `
-                      <div style="display:flex; gap:0.5rem;">
-                         <button onclick="approveUser('${doc.id}')" style="background:#22c55e; color:white; border:none; padding:0.5rem 1rem; border-radius:0.25rem; cursor:pointer;">Approve</button>
-                         <button onclick="rejectUser('${doc.id}')" style="background:#ef4444; color:white; border:none; padding:0.5rem 1rem; border-radius:0.25rem; cursor:pointer;">Reject</button>
-                      </div>
-                    `;
-
-                    item.innerHTML = info + actions;
-                    container.appendChild(item);
-                });
-            });
-        }
-
-        window.approveUser = async (uid) => {
-            try {
-                await db.collection('users').doc(uid).update({ status: 'approved' });
-                alert("User Approved!");
-            } catch (e) { console.error(e); alert("Error approving user"); }
-        }
-
-        window.rejectUser = async (uid) => {
-            if (!confirm("Are you sure you want to reject this user?")) return;
-            try {
-                await db.collection('users').doc(uid).update({ status: 'rejected' });
-                alert("User Rejected!");
-            } catch (e) { console.error(e); alert("Error rejecting user"); }
-        }
-
-        // Initial Load
-        loadPendingUsers();
-
-        // Bulk Upload Logic
-        async function handleBulkUpload() {
-            const fileInput = document.getElementById('csvFile');
-            const statusDiv = document.getElementById('uploadStatus');
-            const file = fileInput.files[0];
-
-            if (!file) {
-                alert("Please select a file first.");
-                return;
-            }
-
-            statusDiv.innerHTML = "Processing...";
-
-            if (file.name.endsWith('.csv')) {
-                Papa.parse(file, {
-                    header: true,
-                    complete: function (results) {
-                        processData(results.data);
-                    }
-                });
-            } else if (file.name.endsWith('.xlsx')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-                    processData(jsonData);
-                };
-                reader.readAsArrayBuffer(file);
-            } else {
-                alert("Unsupported file format.");
-            }
-
-            async function processData(data) {
-                console.log("Raw Data:", data);
-                let successCount = 0;
-
-                // Batch write to Firestore
-                const batch = db.batch();
-                let counter = 0;
-
-                data.forEach((row) => {
-                    if (row.student_id && row.student_name) {
-                        const docRef = db.collection("students").doc(row.student_id.toString());
-                        batch.set(docRef, {
-                            student_id: row.student_id,
-                            student_name: row.student_name,
-                            department: row.department || 'N/A',
-                            semester: row.semester || 1,
-                            email: row.email || '',
-                            has_submitted: false
-                        });
-                        counter++;
-                        successCount++;
-                    }
-                });
-
-                try {
-                    if (counter > 0) {
-                        await batch.commit();
-                        statusDiv.innerHTML = `<span style="color: green;">Successfully uploaded ${successCount} students!</span>`;
-                        alert(`Uploaded ${successCount} records.`);
-                    } else {
-                        statusDiv.innerHTML = "No valid data found.";
-                    }
-                } catch (e) {
-                    console.error(e);
-                    statusDiv.innerHTML = `<span style="color: red;">Error: ${e.message}</span>`;
-                }
-            }
-        }
     </script>
 </body>
 

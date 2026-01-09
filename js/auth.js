@@ -81,6 +81,8 @@ function renderDynamicFields(role) {
             <option value="CSE">CSE</option>
             <option value="ECE">ECE</option>
             <option value="MECH">MECH</option>
+            <option value="CIVIL">CIVIL</option>
+            <option value="EEE">EEE</option>
         </select>
       </div>
     `;
@@ -120,17 +122,18 @@ function renderDynamicFields(role) {
 
 // --- Helper: Email Generator ---
 // Converts RegNum/ID to a synthetic email for Firebase Auth
-function getAuthEmail(role) {
+function getAuthEmail(role, mode) {
+    // mode is 'login' or 'register'
     if (role === 'student') {
-        const id = document.getElementById(document.activeElement.form.id === 'loginForm' ? 'email' : 'regId').value;
+        const id = document.getElementById(mode === 'login' ? 'email' : 'regId').value;
         return `${id}@student.${DOMAIN}`;
     }
     if (role === 'department') {
-        const id = document.getElementById(document.activeElement.form.id === 'loginForm' ? 'email' : 'regId').value;
+        const id = document.getElementById(mode === 'login' ? 'email' : 'regId').value;
         return `${id}@dept.${DOMAIN}`;
     }
     // Teachers/Admins use real input
-    return document.getElementById(document.activeElement.form.id === 'loginForm' ? 'email' : 'regEmail').value;
+    return document.getElementById(mode === 'login' ? 'email' : 'regEmail').value;
 }
 
 // --- Core Logic ---
@@ -145,7 +148,7 @@ async function handleRegisterForm(e) {
     btn.innerText = "Registering...";
 
     try {
-        const email = getAuthEmail(selectedRole);
+        const email = getAuthEmail(selectedRole, 'register');
         const password = document.getElementById('regPassword').value;
         const name = document.getElementById('regName').value;
 
@@ -203,7 +206,7 @@ async function handleLoginForm(e) {
     btn.disabled = true;
 
     try {
-        const email = getAuthEmail(selectedRole);
+        const email = getAuthEmail(selectedRole, 'login');
         const password = document.getElementById('password').value;
 
         // 1. Authenticate
@@ -279,8 +282,10 @@ function checkAuth(requiredRole) {
 }
 
 function logout() {
-    firebase.auth().signOut().then(() => {
-        localStorage.removeItem("fms_role");
-        window.location.href = "index.html";
-    });
+    if (confirm("Are you sure you want to logout?")) {
+        firebase.auth().signOut().then(() => {
+            localStorage.removeItem("fms_role");
+            window.location.href = "index.html";
+        });
+    }
 }
