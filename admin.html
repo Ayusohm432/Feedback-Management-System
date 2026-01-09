@@ -289,6 +289,54 @@
         .slider.round:before {
             border-radius: 50%;
         }
+
+        /* Feedback Grid */
+        .feedback-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .feedback-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #eee;
+        }
+
+        .feedback-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .feedback-header {
+            padding: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .feedback-body {
+            padding: 1rem;
+        }
+
+        .feedback-footer {
+            padding: 0.75rem 1rem;
+            background: #f9fafb;
+            font-size: 0.85em;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .rating-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
     </style>
 </head>
 
@@ -382,7 +430,6 @@
                         <div class="card">
                             <h3><i class="ri-history-line"></i> Recent Activity</h3>
                             <div id="activity-feed">
-                                <!-- Dynamic Content -->
                                 <p style="color:#666; margin-top:1rem;">Loading activity...</p>
                             </div>
                         </div>
@@ -424,20 +471,42 @@
                     </div>
                 </section>
 
-                <!-- 3. FEEDBACK TAB -->
+                <!-- 3. FEEDBACK TAB (UPDATED) -->
                 <section id="tab-feedback" class="tab-section">
-                    <div class="card">
-                        <div
-                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                            <h3>All Feedback</h3>
-                            <select id="feedbackFilter" onchange="loadFeedbackExplorer()"
-                                style="padding:0.5rem; border-radius:0.5rem; border:1px solid #ccc;">
-                                <option value="all">All Feedback</option>
-                                <option value="low">Low Ratings (< 3 Stars)</option>
-                                <option value="high">High Ratings (> 4 Stars)</option>
+                    <div
+                        style="margin-bottom: 1.5rem; display: flex; gap: 1rem; background: white; padding: 1rem; border-radius: 8px; box-shadow: var(--shadow-sm); flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85em; font-weight: bold; color: #666;"> Department</label>
+                            <select id="fbFilterDept" onchange="loadFeedbackExplorer()"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="all">All Departments</option>
                             </select>
                         </div>
-                        <div id="feedback-explorer-container">Loading...</div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85em; font-weight: bold; color: #666;"> Teacher</label>
+                            <select id="fbFilterTeacher" onchange="loadFeedbackExplorer()"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="all">All Teachers</option>
+                            </select>
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85em; font-weight: bold; color: #666;"> Rating</label>
+                            <select id="fbFilterRating" onchange="loadFeedbackExplorer()"
+                                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="all">All Ratings</option>
+                                <option value="low">Low (< 3 Stars)</option>
+                                <option value="high">High (> 3 Stars)</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button class="btn btn-outline" onclick="loadFeedbackExplorer()" title="Refresh"><i
+                                    class="ri-refresh-line"></i></button>
+                        </div>
+                    </div>
+
+                    <div id="feedback-explorer-container" class="feedback-grid">
+                        <!-- Cards injection -->
+                        Loading...
                     </div>
                 </section>
 
@@ -457,6 +526,7 @@
 
                 <!-- 5. STUDENTS TAB -->
                 <section id="tab-students" class="tab-section">
+                    <!-- Add Forms ... (Same as before) -->
                     <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
                         <div class="card" style="flex: 1;">
                             <h3><i class="ri-user-add-line"></i> Add Single Student (Create Account)</h3>
@@ -504,6 +574,7 @@
                 <!-- 6. TEACHERS TAB -->
                 <section id="tab-teachers" class="tab-section">
                     <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                        <!-- Add Forms ... (Same as before) -->
                         <div class="card" style="flex: 1;">
                             <h3><i class="ri-user-add-line"></i> Add Single Teacher (Create Account)</h3>
                             <form onsubmit="handleAddSingleTeacher(event)"
@@ -547,6 +618,7 @@
 
                 <!-- 7. DEPARTMENTS TAB -->
                 <section id="tab-departments" class="tab-section">
+                    <!-- Add Forms ... (Same as before) -->
                     <div style="margin-bottom: 2rem;">
                         <div class="card">
                             <h3><i class="ri-building-line"></i> Add New Department (Create Account)</h3>
@@ -564,17 +636,15 @@
                             </form>
                         </div>
                     </div>
-
                     <div class="card">
                         <h3>Registered Departments</h3>
                         <div id="depts-table-container">Loading...</div>
                     </div>
                 </section>
 
-                <!-- 8. PROFILE TAB (NEW DETAIL VIEW) -->
+                <!-- 8. PROFILE TAB -->
                 <section id="tab-profile" class="tab-section">
                     <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
-                        <!-- Identity Card -->
                         <div class="card" style="text-align: center;">
                             <img src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff&size=128"
                                 id="profile-avatar"
@@ -590,40 +660,26 @@
                                         id="profile-status" style="font-weight: 600; color: #16a34a;">Active</span></p>
                             </div>
                         </div>
-
-                        <!-- Details Card -->
                         <div class="card">
                             <h3><i class="ri-user-settings-line"></i> Account Details</h3>
                             <div style="margin-top: 1.5rem; display: grid; gap: 1.5rem;">
                                 <div
                                     style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; border-bottom: 1px solid #eee; padding-bottom: 1rem;">
-                                    <div>
-                                        <small style="color: #666; display: block; margin-bottom: 0.25rem;">User ID
-                                            (UID)</small>
-                                        <code id="profile-uid"
+                                    <div><small style="color: #666; display: block; margin-bottom: 0.25rem;">User ID
+                                            (UID)</small><code id="profile-uid"
                                             style="background: #f1f5f9; padding: 0.25rem 0.5rem; border-radius: 4px;">--</code>
                                     </div>
-                                    <div>
-                                        <small
-                                            style="color: #666; display: block; margin-bottom: 0.25rem;">Department</small>
-                                        <strong id="profile-dept">Administration</strong>
-                                    </div>
+                                    <div><small
+                                            style="color: #666; display: block; margin-bottom: 0.25rem;">Department</small><strong
+                                            id="profile-dept">Administration</strong></div>
                                 </div>
-
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                                    <div>
-                                        <small style="color: #666; display: block; margin-bottom: 0.25rem;">Member
-                                            Since</small>
-                                        <strong id="profile-joined">--</strong>
-                                    </div>
-                                    <div>
-                                        <small style="color: #666; display: block; margin-bottom: 0.25rem;">Last
-                                            Login</small>
-                                        <strong id="profile-last-login">Just Now</strong>
-                                    </div>
+                                    <div><small style="color: #666; display: block; margin-bottom: 0.25rem;">Member
+                                            Since</small><strong id="profile-joined">--</strong></div>
+                                    <div><small style="color: #666; display: block; margin-bottom: 0.25rem;">Last
+                                            Login</small><strong id="profile-last-login">Just Now</strong></div>
                                 </div>
                             </div>
-
                             <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #eee;">
                                 <h3>Update Info</h3>
                                 <form onsubmit="handleUpdateProfile(event)"
