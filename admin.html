@@ -236,6 +236,59 @@
             justify-content: center;
             font-size: 1rem;
         }
+
+        /* Switch Toggle */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 20px;
+            vertical-align: middle;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+        }
+
+        input:checked+.slider {
+            background-color: #10b981;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(14px);
+        }
+
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            border-radius: 50%;
+        }
     </style>
 </head>
 
@@ -256,8 +309,7 @@
                             class="ri-user-follow-line"></i> Approvals</a></li>
                 <li><a href="#" class="sidebar-link" onclick="switchTab('students', this)"><i class="ri-group-line"></i>
                         Students</a></li>
-                <li><a href="#" class="sidebar-link" onclick="switchTab('teachers', this)"><i
-                            class="ri-user-tie-line"></i> Teachers</a></li>
+                <li><a href="#" class="sidebar-link" onclick="switchTab('teachers', this)"><i class="ri-group-line"></i></i> Teachers</a></li>
                 <li><a href="#" class="sidebar-link" onclick="switchTab('departments', this)"><i
                             class="ri-building-line"></i> Departments</a></li>
                 <li><a href="#" class="sidebar-link" onclick="switchTab('profile', this)"><i
@@ -341,12 +393,12 @@
                                     <i class="ri-user-add-line"></i> Add New Student
                                 </button>
                                 <button class="btn btn-outline" style="justify-content: start;"
-                                    onclick="switchTab('approvals', document.querySelectorAll('.sidebar-link')[3])">
-                                    <i class="ri-user-follow-line"></i> Review Approvals
+                                    onclick="switchTab('teachers', document.querySelectorAll('.sidebar-link')[5])">
+                                    <i class="ri-user-tie-line"></i> Add/Manage Teachers
                                 </button>
                                 <button class="btn btn-outline" style="justify-content: start;"
                                     onclick="downloadSample()">
-                                    <i class="ri-file-download-line"></i> Download CSV Template
+                                    <i class="ri-file-download-line"></i> Download Student CSV
                                 </button>
                             </div>
                         </div>
@@ -409,7 +461,7 @@
                             <h3><i class="ri-user-add-line"></i> Add Single Student</h3>
                             <form onsubmit="handleAddSingleStudent(event)"
                                 style="margin-top: 1rem; display: grid; gap: 1rem;">
-                                <input type="text" id="addRegNum" placeholder="Reg Number (e.g. 2023050)" required
+                                <input type="text" id="addRegNum" placeholder="Reg Number" required
                                     style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <input type="text" id="addName" placeholder="Full Name" required
                                     style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
@@ -420,7 +472,7 @@
                         </div>
                         <div class="card" style="flex: 1;">
                             <h3><i class="ri-file-excel-2-line"></i> Bulk Upload</h3>
-                            <p style="font-size: 0.9em; margin-bottom: 0.5rem;">Upload CSV/XLSX. Cols:
+                            <p style="font-size: 0.9em; margin-bottom: 0.5rem;">CSV:
                                 <code>student_id, student_name, department</code></p>
                             <button class="btn btn-outline" style="font-size: 0.8rem; margin-bottom: 1rem;"
                                 onclick="downloadSample()">Download Template</button>
@@ -439,14 +491,62 @@
 
                 <!-- 6. TEACHERS TAB -->
                 <section id="tab-teachers" class="tab-section">
+                    <div style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                        <div class="card" style="flex: 1;">
+                            <h3><i class="ri-user-add-line"></i> Add Single Teacher</h3>
+                            <form onsubmit="handleAddSingleTeacher(event)"
+                                style="margin-top: 1rem; display: grid; gap: 1rem;">
+                                <input type="text" id="addTeacherName" placeholder="Full Name" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="email" id="addTeacherEmail" placeholder="Email" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <input type="text" id="addTeacherDept" placeholder="Dept Code" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <button class="btn btn-primary">Add Teacher</button>
+                            </form>
+                        </div>
+                        <div class="card" style="flex: 1;">
+                            <h3><i class="ri-file-excel-2-line"></i> Bulk Upload</h3>
+                            <p style="font-size: 0.9em; margin-bottom: 0.5rem;">CSV:
+                                <code>name, email, department</code></p>
+                            <button class="btn btn-outline" style="font-size: 0.8rem; margin-bottom: 1rem;"
+                                onclick="downloadTeacherSample()">Download Template</button>
+                            <input type="file" id="teacherCsvFile" accept=".csv, .xlsx" style="width: 100%;">
+                            <button class="btn btn-primary" onclick="handleBulkTeacherUpload()"
+                                style="margin-top: 1rem;">Process Upload</button>
+                            <div id="teacherUploadStatus"></div>
+                        </div>
+                    </div>
+
                     <div class="card">
-                        <h3>Registered Teachers</h3>
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <h3>Registered Teachers</h3>
+                            <select id="teacherDeptFilter" onchange="filterTeacherList()"
+                                style="padding:0.5rem; border-radius:0.5rem; border:1px solid #ccc;">
+                                <option value="all">All Departments</option>
+                            </select>
+                        </div>
                         <div id="teachers-table-container">Loading...</div>
                     </div>
                 </section>
 
                 <!-- 7. DEPARTMENTS TAB -->
                 <section id="tab-departments" class="tab-section">
+                    <div style="margin-bottom: 2rem;">
+                        <div class="card">
+                            <h3><i class="ri-building-line"></i> Add New Department</h3>
+                            <form onsubmit="handleAddSingleDept(event)"
+                                style="margin-top: 1rem; display: flex; gap: 1rem; align-items: center;">
+                                <input type="text" id="addDeptId" placeholder="Dept ID (e.g. CSE)" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px; flex:1;">
+                                <input type="text" id="addDeptName" placeholder="Department Name" required
+                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px; flex:2;">
+                                <button class="btn btn-primary">Add Department</button>
+                            </form>
+                        </div>
+                    </div>
+
                     <div class="card">
                         <h3>Registered Departments</h3>
                         <div id="depts-table-container">Loading...</div>
