@@ -76,13 +76,14 @@ function renderDynamicFields(role) {
         <input type="text" id="regId" required placeholder="Unique Student ID">
       </div>
       <div class="form-group">
-        <label>Department Code</label>
-        <select id="regDept" required style="width:100%; padding:0.75rem; border-radius:0.5rem; border:1px solid #ccc;">
-            <option value="CSE">CSE</option>
-            <option value="ECE">ECE</option>
-            <option value="MECH">MECH</option>
-            <option value="CIVIL">CIVIL</option>
-            <option value="EEE">EEE</option>
+        <label>Department</label>
+        <select id="regDept" required class="form-control">
+            <option value="" disabled selected>Select Department</option>
+            <option value="101">CE (101)</option>
+            <option value="103">ME (103)</option>
+            <option value="104">EEE (104)</option>
+            <option value="105">CSE (105)</option>
+            <option value="106">ECE (106)</option>
         </select>
       </div>
     `;
