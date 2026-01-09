@@ -81,6 +81,8 @@ function renderDynamicFields(role) {
             <option value="CSE">CSE</option>
             <option value="ECE">ECE</option>
             <option value="MECH">MECH</option>
+            <option value="CIVIL">CIVIL</option>
+            <option value="EEE">EEE</option>
         </select>
       </div>
     `;
