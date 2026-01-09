@@ -241,6 +241,8 @@ async function loadDeptFeedback() {
 
         const fTeacher = document.getElementById('fbFilterTeacher').value;
         const fRating = document.getElementById('fbFilterRating').value;
+        const fYear = document.getElementById('fbFilterYear') ? document.getElementById('fbFilterYear').value : 'all';
+        const fSem = document.getElementById('fbFilterSemester') ? document.getElementById('fbFilterSemester').value : 'all';
 
         let html = '';
         snap.forEach(doc => {
@@ -249,6 +251,8 @@ async function loadDeptFeedback() {
             if (fTeacher !== 'all' && d.teacher_id !== fTeacher) show = false;
             if (fRating === 'low' && d.rating >= 3) show = false;
             if (fRating === 'high' && d.rating <= 3) show = false;
+            if (fYear !== 'all' && (d.year || '1') !== fYear) show = false;
+            if (fSem !== 'all' && (d.semester || '1') !== fSem) show = false;
 
             if (show) {
                 const tName = allMyTeachers.find(t => t.id === d.teacher_id)?.name || 'Unknown Faculty';
@@ -269,7 +273,7 @@ async function loadDeptFeedback() {
                         <p style="margin-top:0.75rem; color:#444; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
                     </div>
                     <div style="background:#fafafa; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; display:flex; justify-content:space-between; font-size:0.8em; color:#888;">
-                        <span>Session: ${d.session || 'N/A'}</span>
+                        <span>${d.session || 'N/A'} | Year ${d.year || '-'} Sem ${d.semester || '-'}</span>
                         <span>${date}</span>
                     </div>
                 </div>`;
@@ -323,6 +327,8 @@ async function handleDeptAddStudent(e) {
     const reg = document.getElementById('sReg').value.trim();
     const name = document.getElementById('sName').value.trim();
     const pass = document.getElementById('sPass').value;
+    const year = document.getElementById('sYear').value;
+    const semester = document.getElementById('sSemester').value;
     const session = currentDeptDoc.activeSession;
 
     if (!session) return alert("Please Create & Set an Active Session first in Sessions tab.");
@@ -333,6 +339,7 @@ async function handleDeptAddStudent(e) {
         await db.collection('users').doc(uid).set({
             uid, name, email, role: 'student', status: 'approved',
             regNum: reg, department: currentDeptId, session: session,
+            year: year || '1', semester: semester || '1',
             createdAt: new Date()
         });
         alert("Student Created!"); e.target.reset();
@@ -373,6 +380,7 @@ async function handleDeptBulkStudent() {
                         await db.collection('users').doc(uid).set({
                             uid, name: r.name, email, role: 'student', status: 'approved',
                             regNum: r.student_id, department: currentDeptId, session: session,
+                            year: r.year || '1', semester: r.semester || '1',
                             createdAt: new Date()
                         });
                         n++;

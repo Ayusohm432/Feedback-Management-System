@@ -135,6 +135,8 @@ async function loadTeacherFeedback() {
         const filterRating = document.getElementById('tfFilterRating') ? document.getElementById('tfFilterRating').value : 'all';
         const filterSession = sessionSelect ? sessionSelect.value : 'all';
         const filterSubject = subjectSelect ? subjectSelect.value : 'all';
+        const filterYear = document.getElementById('tfFilterYear') ? document.getElementById('tfFilterYear').value : 'all';
+        const filterSemester = document.getElementById('tfFilterSemester') ? document.getElementById('tfFilterSemester').value : 'all';
 
         let html = '';
         let recentHtml = '';
@@ -146,6 +148,8 @@ async function loadTeacherFeedback() {
             if (filterRating !== 'all' && d.rating.toString() !== filterRating) return;
             if (filterSession !== 'all' && d.session !== filterSession) return;
             if (filterSubject !== 'all' && d.subject !== filterSubject) return;
+            if (filterYear !== 'all' && (d.year || '1') !== filterYear) return;
+            if (filterSemester !== 'all' && (d.semester || '1') !== filterSemester) return;
 
             const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
             const color = d.rating < 3 ? '#ef4444' : (d.rating >= 4 ? '#10b981' : '#f59e0b');
@@ -161,7 +165,7 @@ async function loadTeacherFeedback() {
                     <p style="color:#444; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
                 </div>
                 <div style="background:#fafafa; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; display:flex; justify-content:space-between; font-size:0.8em; color:#888;">
-                    <span>Session: ${d.session || 'N/A'}</span>
+                    <span>${d.session || 'N/A'} | Year ${d.year || '-'} Sem ${d.semester || '-'}</span>
                     <span>${date}</span>
                 </div>
             </div>`;

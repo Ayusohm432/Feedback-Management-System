@@ -415,6 +415,20 @@
                                 style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <option value="all">All Teachers</option>
                             </select>
+                            <select id="fbFilterYear" onchange="loadFeedbackExplorer()"
+                                style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <option value="all">All Years</option>
+                                <option value="1">1st Year</option>
+                                <option value="2">2nd Year</option>
+                                <option value="3">3rd Year</option>
+                                <option value="4">4th Year</option>
+                            </select>
+                            <select id="fbFilterSemester" onchange="loadFeedbackExplorer()"
+                                style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <option value="all">All Semesters</option>
+                                <option value="1">Sem 1</option>
+                                <option value="2">Sem 2</option>
+                            </select>
                             <select id="fbFilterRating" onchange="loadFeedbackExplorer()"
                                 style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <option value="all">All Ratings</option>
@@ -462,6 +476,22 @@
                                     <option value="105">CSE (105)</option>
                                     <option value="106">ECE (106)</option>
                                 </select>
+                                <div style="display:flex; gap:0.5rem;">
+                                    <select id="addYear" required
+                                        style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                        <option value="" disabled selected>Year</option>
+                                        <option value="1">1st Year</option>
+                                        <option value="2">2nd Year</option>
+                                        <option value="3">3rd Year</option>
+                                        <option value="4">4th Year</option>
+                                    </select>
+                                    <select id="addSemester" required
+                                        style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                        <option value="" disabled selected>Sem</option>
+                                        <option value="1">Sem 1</option>
+                                        <option value="2">Sem 2</option>
+                                    </select>
+                                </div>
                                 <input type="text" id="addSession" placeholder="Session (e.g. 2023-27)" required
                                     style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <input type="password" id="addPassword" placeholder="Password" required
@@ -472,7 +502,8 @@
                         <div class="card" style="flex: 1;">
                             <h3>Bulk Upload</h3>
                             <p style="font-size:0.9em;color:#666;">Cols:
-                                <code>student_id, name, department, session, password</code></p>
+                                <code>student_id, name, department, session, password</code>
+                            </p>
                             <input type="file" id="csvFile" accept=".csv" style="margin:1rem 0;">
                             <button class="btn btn-primary" onclick="handleBulkUpload()">Upload</button>
                         </div>

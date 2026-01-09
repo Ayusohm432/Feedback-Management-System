@@ -158,7 +158,7 @@ function filterTeacherList() {
 function renderUserTable(users, role, container) {
     if (users.length === 0) { container.innerHTML = "No users found."; return; }
     let headers = ['Name', 'Email'];
-    if (role === 'student') headers.push('Reg No', 'Dept', 'Session');
+    if (role === 'student') headers.push('Reg No', 'Dept', 'Year/Sem', 'Session');
     if (role === 'department') headers.push('Dept ID', 'Name', 'Session');
     if (role === 'teacher') headers.push('Dept', 'Review Status');
 
@@ -167,7 +167,7 @@ function renderUserTable(users, role, container) {
         html += `<tr>
             <td>${u.name}</td>
             <td>${u.email}</td>
-            ${role === 'student' ? `<td>${u.regNum || '-'}</td><td>${u.department || 'General'}</td><td>${u.session || '-'}</td>` : ''}
+            ${role === 'student' ? `<td>${u.regNum || '-'}</td><td>${u.department || 'General'}</td><td>Y${u.year || '1'}-S${u.semester || '1'}</td><td>${u.session || '-'}</td>` : ''}
             ${role === 'department' ? `<td>${u.deptId || '-'}</td><td>${u.name}</td><td>${u.session || '-'}</td>` : ''}
             ${role === 'teacher' ? `<td>${u.department || 'General'}</td><td><label class="switch"><input type="checkbox" ${u.isReviewOpen ? 'checked' : ''} onchange="toggleReviewStatus('${u.id}', this.checked)"><span class="slider round"></span></label><span style="font-size:0.8em; margin-left:0.5rem; color:${u.isReviewOpen ? '#16a34a' : '#999'}">${u.isReviewOpen ? 'Open' : 'Closed'}</span></td>` : ''}
         </tr>`;
@@ -187,12 +187,29 @@ async function createUserInSecondaryApp(email, password) {
     try { const userCred = await secondaryApp.auth().createUserWithEmailAndPassword(email, password); const uid = userCred.user.uid; await secondaryApp.delete(); return uid; } catch (err) { await secondaryApp.delete(); throw err; }
 }
 async function handleAddSingleStudent(e) {
-    e.preventDefault(); const reg = document.getElementById('addRegNum').value; const name = document.getElementById('addName').value; const dept = document.getElementById('addDept').value; const session = document.getElementById('addSession').value; const pass = document.getElementById('addPassword').value; const email = `${reg}@student.fms.local`;
-    try { const uid = await createUserInSecondaryApp(email, pass); await db.collection('users').doc(uid).set({ uid: uid, name: name, email: email, role: 'student', status: 'approved', regNum: reg, department: dept, session: session, createdAt: new Date() }); alert(`Student Created!`); e.target.reset(); } catch (err) { alert("Error: " + err.message); }
+    e.preventDefault();
+    const reg = document.getElementById('addRegNum').value;
+    const name = document.getElementById('addName').value;
+    const dept = document.getElementById('addDept').value;
+    const session = document.getElementById('addSession').value;
+    const pass = document.getElementById('addPassword').value;
+    const year = document.getElementById('addYear').value;
+    const semester = document.getElementById('addSemester').value;
+    const email = `${reg}@student.fms.local`;
+    try {
+        const uid = await createUserInSecondaryApp(email, pass);
+        await db.collection('users').doc(uid).set({
+            uid: uid, name: name, email: email, role: 'student', status: 'approved',
+            regNum: reg, department: dept, session: session,
+            year: year || '1', semester: semester || '1',
+            createdAt: new Date()
+        });
+        alert(`Student Created!`); e.target.reset();
+    } catch (err) { alert("Error: " + err.message); }
 }
 async function handleBulkUpload() {
     const file = document.getElementById('csvFile').files[0]; if (!file) return alert("Select file first");
-    Papa.parse(file, { header: true, complete: async function (results) { let count = 0; for (let row of results.data) { if (row.student_id && row.password) { try { const email = `${row.student_id}@student.fms.local`; const uid = await createUserInSecondaryApp(email, row.password); await db.collection('users').doc(uid).set({ uid: uid, name: row.name, email: email, role: 'student', status: 'approved', regNum: row.student_id, department: row.department, session: row.session, createdAt: new Date() }); count++; } catch (err) { } } } alert(`Successfully created ${count} users.`); } });
+    Papa.parse(file, { header: true, complete: async function (results) { let count = 0; for (let row of results.data) { if (row.student_id && row.password) { try { const email = `${row.student_id}@student.fms.local`; const uid = await createUserInSecondaryApp(email, row.password); await db.collection('users').doc(uid).set({ uid: uid, name: row.name, email: email, role: 'student', status: 'approved', regNum: row.student_id, department: row.department, session: row.session, year: row.year || '1', semester: row.semester || '1', createdAt: new Date() }); count++; } catch (err) { } } } alert(`Successfully created ${count} users.`); } });
 }
 function downloadSample() { const csvContent = "data:text/csv;charset=utf-8," + "student_id,name,department,session,password\n2024001,John Doe,CSE,2023-27,password123"; const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = "student_full_import.csv"; document.body.appendChild(link); link.click(); }
 async function handleAddSingleTeacher(e) { e.preventDefault(); const name = document.getElementById('addTeacherName').value; const email = document.getElementById('addTeacherEmail').value; const dept = document.getElementById('addTeacherDept').value; const pass = document.getElementById('addTeacherPassword').value; try { const uid = await createUserInSecondaryApp(email, pass); await db.collection('users').doc(uid).set({ uid: uid, name: name, email: email, role: 'teacher', status: 'approved', department: dept, isReviewOpen: false, createdAt: new Date() }); alert(`Teacher Created!`); e.target.reset(); } catch (err) { alert("Error: " + err.message); } }
@@ -272,6 +289,8 @@ async function loadFeedbackExplorer() {
     const filterRating = document.getElementById('fbFilterRating').value;
     const filterDept = document.getElementById('fbFilterDept').value;
     const filterTeacher = document.getElementById('fbFilterTeacher').value;
+    const filterYear = document.getElementById('fbFilterYear') ? document.getElementById('fbFilterYear').value : 'all';
+    const filterSem = document.getElementById('fbFilterSemester') ? document.getElementById('fbFilterSemester').value : 'all';
     const container = document.getElementById('feedback-explorer-container');
     container.innerHTML = '<p class="text-gray-500">Loading filters...</p>';
 
@@ -294,9 +313,10 @@ async function loadFeedbackExplorer() {
             // --- CLIENT-SIDE FILTERING ---
             let show = true;
 
-            // 1. Rating
             if (filterRating === 'low' && data.rating >= 3) show = false;
             if (filterRating === 'high' && data.rating <= 3) show = false;
+            if (filterYear !== 'all' && (data.year || '1') !== filterYear) show = false;
+            if (filterSem !== 'all' && (data.semester || '1') !== filterSem) show = false;
 
             // 2. Department
             if (filterDept !== 'all') {
@@ -340,7 +360,7 @@ async function loadFeedbackExplorer() {
                             <p style="color:#444; font-size:0.95em; line-height:1.5;">"${data.comments || ''}"</p>
                         </div>
                         <div class="feedback-footer">
-                            <span>${data.department || 'General'}</span>
+                            <span style="font-size:0.85em;">${data.department || 'Gen'} | ${data.session || '-'} | Y${data.year || '-'} S${data.semester || '-'}</span>
                             <span style="color:${colorClass}">${stars}</span>
                         </div>
                     </div>

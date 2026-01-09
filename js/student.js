@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('pName').value = currentUserDoc.name;
                 document.getElementById('pEmail').value = currentUserDoc.email;
                 document.getElementById('pDept').value = currentUserDoc.department;
+                document.getElementById('pYear').value = currentUserDoc.year || '-';
+                document.getElementById('pSem').value = currentUserDoc.semester || '-';
 
                 // Load Data
                 loadStats();
@@ -206,8 +208,9 @@ function checkReviewStatus() {
     }
 
     // 2. Check Duplicate
-    const session = teacher.activeSession || 'General';
-    const checkKey = `${firebase.auth().currentUser.uid}_${session}`;
+    const year = currentUserDoc.year || '1';
+    const sem = currentUserDoc.semester || '1';
+    const checkKey = `${uid}_${year}_${sem}`;
 
     if (submittedSessions.has(checkKey)) {
         btn.disabled = true;
@@ -239,7 +242,10 @@ async function submitFeedback(e) {
 
     const session = teacher.activeSession || 'General';
 
-    if (submittedSessions.has(`${firebase.auth().currentUser.uid}_${session}`)) {
+    const year = currentUserDoc.year || '1';
+    const sem = currentUserDoc.semester || '1';
+
+    if (submittedSessions.has(`${teacherId}_${year}_${sem}`)) {
         return alert("Duplicate review.");
     }
 
@@ -251,6 +257,8 @@ async function submitFeedback(e) {
         comments: document.getElementById('comments').value,
         department: teacher.department || 'General',
         session: session,
+        year: currentUserDoc.year || '1',
+        semester: currentUserDoc.semester || '1',
         submitted_at: new Date()
     };
 
@@ -291,8 +299,9 @@ function loadHistory() {
         snap.forEach(d => {
             const data = d.data();
             docs.push(data);
-            if (data.teacher_id && data.session) {
-                submittedSessions.add(`${data.teacher_id}_${data.session}`);
+            if (data.teacher_id) {
+                const ky = `${data.teacher_id}_${data.year || '1'}_${data.semester || '1'}`;
+                submittedSessions.add(ky);
             }
         });
 
