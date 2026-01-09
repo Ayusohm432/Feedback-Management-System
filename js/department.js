@@ -131,14 +131,25 @@ function loadDeptStats() {
 }
 
 function loadRecentActivity() {
-    db.collection('users').where('department', '==', currentDeptId).orderBy('createdAt', 'desc').limit(5).get().then(snap => {
+    db.collection('users').where('department', '==', currentDeptId).orderBy('createdAt', 'desc').limit(5).onSnapshot(snap => {
         const container = document.getElementById('dept-activity-feed');
-        if (snap.empty) { container.innerHTML = "No recent activity."; return; }
+        if (snap.empty) { container.innerHTML = "<p style='color:#666; font-style:italic;'>No recent activity.</p>"; return; }
+
         let html = '';
         snap.forEach(doc => {
             const d = doc.data();
-            html += `<div style="padding:0.5rem 0; border-bottom:1px solid #eee;">
-                <strong>New ${d.role}</strong>: ${d.name} <small style="color:#999;">(${new Date(d.createdAt.seconds * 1000).toLocaleDateString()})</small>
+            const date = d.createdAt ? new Date(d.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
+            const icon = d.role === 'student' ? 'ri-user-line' : 'ri-user-tie-line';
+
+            html += `
+            <div style="display:flex; align-items:center; gap:1rem; padding:0.75rem 0; border-bottom:1px solid #eee;">
+                <div style="width:32px; height:32px; background:#e0f2fe; color:#0284c7; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                    <i class="${icon}"></i>
+                </div>
+                <div>
+                    <div style="font-size:0.9em;"><strong>New ${d.role}</strong> joined: ${d.name}</div>
+                    <small style="color:#999; font-size:0.8em;">${date}</small>
+                </div>
             </div>`;
         });
         container.innerHTML = html;

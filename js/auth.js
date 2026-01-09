@@ -91,7 +91,7 @@ function renderDynamicFields(role) {
         html += `
       <div class="form-group">
         <label>Department ID</label>
-        <input type="text" id="regId" required placeholder="e.g. CSE-001">
+        <input type="text" id="regId" required placeholder="e.g. 105    'Used for CSE'">
       </div>
       <div class="form-group">
         <label>Session / BatchYear</label>
