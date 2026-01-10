@@ -62,136 +62,185 @@
       margin-bottom: 2rem;
       font-size: 0.95rem;
     }
+
+    /* Footer Styles */
+    .app-footer {
+      background: var(--neutral-900);
+      color: white;
+      padding: 3rem 2rem;
+      border-top: 1px solid var(--neutral-700);
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 3rem;
+      text-align: left;
+    }
+
+    .footer-col h4 {
+      color: var(--primary-light);
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .footer-col p {
+      color: var(--neutral-400);
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .footer-bottom {
+      text-align: center;
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--neutral-800);
+      color: var(--neutral-500);
+      font-size: 0.85rem;
+    }
   </style>
+
 </head>
 
 <body>
-
   <div class="hero">
     <div class="hero-content fade-in">
       <h1>Feedback Management System</h1>
-      <p>Secure, Anonymous, and Effective Academic Feedback</p>
+      <p>Secure,
+        Anonymous,
+        and Effective Academic Feedback</p>
     </div>
-
     <div class="role-grid fade-in" style="animation-delay: 0.2s;">
-      <!-- Student -->
-      <div class="card role-card">
-        <i class="ri-user-smile-line role-icon"></i>
+
+      <div class="card role-card"><i class="ri-user-smile-line role-icon"></i>
         <h3>Student</h3>
-        <p class="role-desc">Submit feedback anonymously and view your submission history.</p>
-        <button class="btn btn-primary" onclick="openLoginModal('student')">
-          Login as Student
-        </button>
+        <p class="role-desc">Submit feedback anonymously and view your submission history.</p><button
+          class="btn btn-primary" onclick="openLoginModal('student')">Login as Student </button>
       </div>
 
-      <!-- Teacher -->
-      <div class="card role-card">
-        <i class="ri-presentation-line role-icon"></i>
+      <div class="card role-card"><i class="ri-presentation-line role-icon"></i>
         <h3>Teacher</h3>
-        <p class="role-desc">View ratings, analytics, and student comments for your courses.</p>
-        <button class="btn btn-outline" onclick="openLoginModal('teacher')">
-          Login as Teacher
-        </button>
+        <p class="role-desc">View ratings,
+          analytics,
+          and student comments for your courses.</p><button class="btn btn-outline"
+          onclick="openLoginModal('teacher')">Login as Teacher </button>
       </div>
 
-      <!-- Department -->
-      <div class="card role-card">
-        <i class="ri-building-4-line role-icon"></i>
+      <div class="card role-card"><i class="ri-building-4-line role-icon"></i>
         <h3>Department</h3>
-        <p class="role-desc">Monitor department performance and manage student data.</p>
-        <button class="btn btn-outline" onclick="openLoginModal('department')">
-          Login as Dept
-        </button>
+        <p class="role-desc">Monitor department performance and manage student data.</p><button class="btn btn-outline"
+          onclick="openLoginModal('department')">Login as Dept </button>
       </div>
 
-      <!-- Admin -->
-      <div class="card role-card">
-        <i class="ri-admin-line role-icon"></i>
+      <div class="card role-card"><i class="ri-admin-line role-icon"></i>
         <h3>Admin</h3>
-        <p class="role-desc">System configuration, user management, and global reports.</p>
-        <button class="btn btn-outline" onclick="openLoginModal('admin')">
-          Login as Admin
-        </button>
+        <p class="role-desc">System configuration,
+          user management,
+          and global reports.</p><button class="btn btn-outline" onclick="openLoginModal('admin')">Login as
+          Admin </button>
       </div>
     </div>
   </div>
 
-  <!-- Login Modal -->
+  <footer class="app-footer">
+    <div class="footer-content">
+
+      <div class="footer-col">
+        <h4><i class="ri-government-line" style="vertical-align: sub; margin-right: 0.5rem;"></i>Institution</h4>
+        <p style="color:white; font-weight:600; font-size:1rem;">Gaya College of Engineering</p>
+        <p>Managed by Bihar Engineering University</p>
+        <p>Sri Krishna Nagar, P.O Nagariyawan, Via Buniyadganj
+          <br>Gaya - 823301, Bihar
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h4><i class="ri-user-star-line" style="vertical-align: sub; margin-right: 0.5rem;"></i>Project Guidance
+        </h4>
+        <p><strong>Guided By:</strong></p>
+        <p style="color:white; font-size:1rem;">Prof. Pratik Ranjan</p>
+        <p>Assistant Professor,
+          <br>Dept. of Computer Science & Engg.
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h4><i class="ri-code-s-slash-line" style="vertical-align: sub; margin-right: 0.5rem;"></i>Developed By
+        </h4>
+        <div style="margin-bottom: 1rem; display:flex; align-items:center; gap:0.75rem;">
+          <img src="/Feedback Management System/resources/Ayush.jpg" alt="Ayush"
+            style="width:40px; height:40px; border-radius:50%; border:2px solid rgba(255,255,255,0.2);">
+          <div>
+            <p style="color:white; font-weight:600; margin:0; line-height:1.2;">Ayush Kumar</p>
+            <p style="font-size:0.8em; margin:0; color:var(--neutral-400);">Roll No: 23CSE09LE<br>Registration No: 23105110902<br> Final Year CSE</p>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <img src="/Feedback Management System/resources/Priyanshu.jpeg"
+            alt="Priyanshu" style="width:40px; height:40px; border-radius:50%; border:2px solid rgba(255,255,255,0.2);">
+          <div>
+            <p style="color:white; font-weight:600; margin:0; line-height:1.2;">Priyanshu Kumar</p>
+            <p style="font-size:0.8em; margin:0; color:var(--neutral-400);">Roll No: 22CSE14<br>Registration No: 22105110024<br> Final Year CSE</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">&copy;
+      2026 Feedback Management System. All Rights Reserved. | Designed with <i class="ri-heart-fill"
+        style="color: var(--primary);"></i></div>
+  </footer>
+
   <div id="loginModal" class="modal-overlay">
-    <div class="modal-content">
-      <button class="close-btn" onclick="closeLoginModal()">&times;</button>
+    <div class="modal-content"><button class="close-btn" onclick="closeLoginModal()">&times;
+      </button>
       <h2 id="modalTitle" style="margin-bottom: 0.5rem;">Login</h2>
       <p style="color: var(--neutral-700); margin-bottom: 1.5rem;">Please enter your credentials.</p>
-
       <form id="loginForm" onsubmit="handleLoginForm(event)">
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input type="email" id="email" required placeholder="name@example.com">
-        </div>
-
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" required placeholder="Enter your password">
-        </div>
-
+        <div class="form-group"><label for="email">Email</label><input type="email" id="email" required
+            placeholder="name@example.com"></div>
+        <div class="form-group"><label for="password">Password</label><input type="password" id="password" required
+            placeholder="Enter your password"></div>
         <div id="loginError" class="error-msg">Invalid credentials.</div>
-
-        <div style="margin-bottom: 1rem; text-align: right; font-size: 0.9rem;">
-          <a href="#" onclick="switchToRegister()" style="color: var(--primary);">Need an account? Register</a>
-        </div>
-
-        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
-          Sign In
-        </button>
+        <div style="margin-bottom: 1rem; text-align: right; font-size: 0.9rem;"><a href="#" onclick="switchToRegister()"
+            style="color: var(--primary);">Need an account? Register</a></div><button type="submit"
+          class="btn btn-primary" style="width: 100%; justify-content: center;">Sign In </button>
       </form>
     </div>
   </div>
 
-  <!-- Register Modal -->
   <div id="registerModal" class="modal-overlay">
-    <div class="modal-content">
-      <button class="close-btn" onclick="closeRegisterModal()">&times;</button>
+    <div class="modal-content"><button class="close-btn" onclick="closeRegisterModal()">&times;
+      </button>
       <h2 id="regModalTitle" style="margin-bottom: 0.5rem;">Register</h2>
       <p style="color: var(--neutral-700); margin-bottom: 1.5rem;">Create a new account.</p>
-
       <form id="registerForm" onsubmit="handleRegisterForm(event)">
-        <!-- Common Name Field -->
-        <div class="form-group">
-          <label>Full Name</label>
-          <input type="text" id="regName" required>
-        </div>
 
-        <!-- Dynamic Fields Container -->
+        <div class="form-group"><label>Full Name</label><input type="text" id="regName" required></div>
+
         <div id="dynamicFields"></div>
 
-        <!-- Common Password Field -->
-        <div class="form-group">
-          <label>Password</label>
-          <input type="password" id="regPassword" required minlength="6">
+        <div class="form-group"><label>Password</label><input type="password" id="regPassword" required minlength="6">
         </div>
-
-        <div id="regError" class="error-msg">Error creating account.</div>
-
-        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
-          Submit Registration
+        <div id="regError" class="error-msg">Error creating account.</div><button type="submit" class="btn btn-primary"
+          style="width: 100%; justify-content: center;">Submit Registration
         </button>
-
-        <div style="margin-top: 1rem; text-align: center; font-size: 0.9rem;">
-          Already have an account? <a href="#" onclick="switchToLogin()" style="color: var(--primary);">Login</a>
-        </div>
+        <div style="margin-top: 1rem; text-align: center; font-size: 0.9rem;">Already have an account? <a href="#"
+            onclick="switchToLogin()" style="color: var(--primary);">Login</a></div>
       </form>
     </div>
   </div>
 
-  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-  <!-- App Scripts -->
   <script src="js/firebase.js"></script>
   <script src="js/auth.js"></script>
-
 </body>
 
 </html>
