@@ -523,6 +523,20 @@
                                     <button class="btn btn-sm btn-primary" onclick="promoteAllStudents()"
                                         title="Promote All in List">Promote All Listed</button>
                                 </div>
+                                <select id="studentYearFilter" onchange="filterStudentList()"
+                                    style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                    <option value="all">All Years</option>
+                                    <option value="1">1st Year</option>
+                                    <option value="2">2nd Year</option>
+                                    <option value="3">3rd Year</option>
+                                    <option value="4">4th Year</option>
+                                </select>
+                                <select id="studentSemFilter" onchange="filterStudentList()"
+                                    style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                    <option value="all">All Semesters</option>
+                                    <option value="1">Sem 1</option>
+                                    <option value="2">Sem 2</option>
+                                </select>
                                 <select id="studentDeptFilter" onchange="filterStudentList()"
                                     style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                     <option value="all">All Departments</option>

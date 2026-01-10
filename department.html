@@ -450,7 +450,21 @@
                         <div
                             style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
                             <h3 style="margin:0;">Registered Students</h3>
-                            <div id="dept-student-actions" style="display:flex; gap:0.5rem;">
+                            <div id="dept-student-actions" style="display:flex; gap:0.5rem; align-items:center;">
+                                <select id="deptStudentYearFilter" onchange="filterDeptStudentList()"
+                                    style="padding:0.4rem; border:1px solid #ddd; border-radius:4px; font-size:0.9em;">
+                                    <option value="all">Year</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                </select>
+                                <select id="deptStudentSemFilter" onchange="filterDeptStudentList()"
+                                    style="padding:0.4rem; border:1px solid #ddd; border-radius:4px; font-size:0.9em;">
+                                    <option value="all">Sem</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                </select>
                                 <button class="btn btn-sm btn-outline" onclick="promoteSelectedStudents()"
                                     title="Promote Selected"><i class="ri-arrow-up-double-line"></i> Promote
                                     Selected</button>

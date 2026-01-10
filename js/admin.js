@@ -136,10 +136,24 @@ function updateStudentDeptDropdown(students) {
     if (depts.includes(curr)) sel.value = curr;
 }
 function filterStudentList() {
-    const filter = document.getElementById('studentDeptFilter').value;
+    const filterDept = document.getElementById('studentDeptFilter').value;
+    const filterYear = document.getElementById('studentYearFilter').value;
+    const filterSem = document.getElementById('studentSemFilter').value;
     const container = document.getElementById('students-table-container');
-    if (filter === 'all') renderUserTable(allStudents, 'student', container);
-    else renderUserTable(allStudents.filter(s => (s.department || 'General') === filter), 'student', container);
+
+    let filtered = allStudents;
+
+    if (filterDept !== 'all') {
+        filtered = filtered.filter(s => (s.department || 'General') === filterDept);
+    }
+    if (filterYear !== 'all') {
+        filtered = filtered.filter(s => (s.year || '1').toString() === filterYear);
+    }
+    if (filterSem !== 'all') {
+        filtered = filtered.filter(s => (s.semester || '1').toString() === filterSem);
+    }
+
+    renderUserTable(filtered, 'student', container);
 }
 function updateDeptDropdown(teachers) {
     const depts = [...new Set(teachers.map(t => t.department || 'General'))];

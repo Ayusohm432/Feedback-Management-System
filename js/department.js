@@ -219,23 +219,51 @@ function loadDeptStudents() {
         .onSnapshot(snap => {
             allDeptStudents = []; // Reset
             const container = document.getElementById('dept-students-list');
-            if (snap.empty) { container.innerHTML = "<p>No particular students.</p>"; return; }
+            container.innerHTML = 'Loading students...';
 
-            let html = '<table class="w-full"><thead><tr><th><input type="checkbox" onchange="toggleAllStudents(this)"></th><th>Reg No</th><th>Name</th><th>Year/Sem</th><th>Session</th></tr></thead><tbody>';
+            // Store raw objects
+            allDeptStudents = [];
             snap.forEach(doc => {
-                const s = { id: doc.id, ...doc.data() };
-                allDeptStudents.push(s);
-                html += `<tr>
-                    <td><input type="checkbox" class="student-checkbox" value="${s.id}"></td>
-                    <td>${s.regNum}</td>
-                    <td>${s.name}</td>
-                    <td>Y${s.year || '1'}-S${s.semester || '1'}</td>
-                    <td>${s.session}</td>
-                </tr>`;
+                allDeptStudents.push({ id: doc.id, ...doc.data() });
             });
-            html += '</tbody></table>';
-            container.innerHTML = html;
+
+            // Initial Filter/Render
+            filterDeptStudentList();
         });
+}
+
+function filterDeptStudentList() {
+    const filterYear = document.getElementById('deptStudentYearFilter') ? document.getElementById('deptStudentYearFilter').value : 'all';
+    const filterSem = document.getElementById('deptStudentSemFilter') ? document.getElementById('deptStudentSemFilter').value : 'all';
+    const container = document.getElementById('dept-students-list');
+
+    let filtered = allDeptStudents;
+
+    if (filterYear !== 'all') {
+        filtered = filtered.filter(s => (s.year || '1').toString() === filterYear);
+    }
+    if (filterSem !== 'all') {
+        filtered = filtered.filter(s => (s.semester || '1').toString() === filterSem);
+    }
+
+    renderStudentTable(filtered, container);
+}
+
+function renderStudentTable(students, container) {
+    if (students.length === 0) { container.innerHTML = "<p>No particular students found.</p>"; return; }
+
+    let html = '<table class="w-full"><thead><tr><th><input type="checkbox" onchange="toggleAllStudents(this)"></th><th>Reg No</th><th>Name</th><th>Year/Sem</th><th>Session</th></tr></thead><tbody>';
+    students.forEach(s => {
+        html += `<tr>
+            <td><input type="checkbox" class="student-checkbox" value="${s.id}"></td>
+            <td>${s.regNum}</td>
+            <td>${s.name}</td>
+            <td>Y${s.year || '1'}-S${s.semester || '1'}</td>
+            <td>${s.session}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
 }
 
 async function loadDeptFeedback() {
@@ -565,12 +593,16 @@ window.demoteSelectedStudents = async () => {
 };
 
 window.promoteAllStudents = async () => {
-    // Uses cached list
-    if (allDeptStudents.length === 0) return alert("No students listing.");
-    if (!confirm(`Are you sure you want to PROMOTE ALL ${allDeptStudents.length} students?`)) return;
+    // Uses currently filtered list (we need to filter again or rely on what's visible, but filtering data is safer)
+    // Actually, let's grab the already filtered list if possible, or just re-filter.
+    // Easier: get unchecked checkboxes
 
-    const ids = allDeptStudents.map(s => s.id);
-    await processBatchUpdate(ids, 1);
+    const visibleIds = Array.from(document.querySelectorAll('.student-checkbox')).map(cb => cb.value);
+
+    if (visibleIds.length === 0) return alert("No students listing.");
+    if (!confirm(`Are you sure you want to PROMOTE ALL ${visibleIds.length} listed students?`)) return;
+
+    await processBatchUpdate(visibleIds, 1);
 };
 
 async function processBatchUpdate(ids, direction) {
