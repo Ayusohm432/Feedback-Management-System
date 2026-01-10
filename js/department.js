@@ -24,16 +24,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('dept-email-display').innerText = user.email;
                 document.getElementById('dept-avatar').src = `https://ui-avatars.com/api/?name=${dName}&background=10b981&color=fff`;
 
-                document.getElementById('pName').value = dName;
-                document.getElementById('pId').value = currentDeptId;
-
                 // Active Session Logic
                 const actSess = currentDeptDoc.activeSession || 'NOT SET';
                 document.getElementById('current-session-display').innerText = `Active Session: ${actSess}`;
-                document.getElementById('pSessionDisplay').value = actSess;
+                document.getElementById('pSessionDisplay').innerText = actSess;
                 if (document.getElementById('sSession')) document.getElementById('sSession').value = actSess;
 
                 // Load Data
+                // Profile Section
+                document.getElementById('pNameDisplay').innerText = dName;
+                document.getElementById('pEmailDisplay').innerText = user.email;
+                document.getElementById('pIdDisplay').innerText = currentDeptId;
+                document.getElementById('profile-avatar-large').src = `https://ui-avatars.com/api/?name=${dName}&background=10b981&color=fff&size=200`;
                 loadDeptStats();
                 loadDeptTeachers();
                 loadDeptStudents();
@@ -140,33 +142,40 @@ function loadRecentActivity() {
             return;
         }
 
-        // Convert to array and sort
+        // Snapshot to array
         let users = [];
         snap.forEach(doc => users.push(doc.data()));
+
+        // Sort descending by time
         users.sort((a, b) => {
             const tA = a.createdAt ? a.createdAt.seconds : 0;
             const tB = b.createdAt ? b.createdAt.seconds : 0;
             return tB - tA;
         });
 
-        // Take top 5
+        // Top 5
         users = users.slice(0, 5);
 
         let html = '';
         users.forEach(d => {
             const date = d.createdAt ? new Date(d.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
-            const icon = d.role === 'student' ? 'ri-user-line' : (d.role === 'teacher' ? 'ri-user-tie-line' : 'ri-user-settings-line');
-            const bg = d.role === 'student' ? '#e0f2fe' : (d.role === 'teacher' ? '#dcfce7' : '#f3f4f6');
-            const color = d.role === 'student' ? '#0284c7' : (d.role === 'teacher' ? '#16a34a' : '#4b5563');
+
+            let icon = 'ri-notification-line';
+            let color = '#666';
+            let bg = '#f1f5f9';
+
+            if (d.role === 'student') { icon = 'ri-user-smile-line'; color = '#2563eb'; bg = '#dbeafe'; }
+            if (d.role === 'teacher') { icon = 'ri-user-star-line'; color = '#9333ea'; bg = '#f3e8ff'; }
 
             html += `
-            <div style="display:flex; align-items:center; gap:1rem; padding:0.75rem 0; border-bottom:1px solid #eee;">
-                <div style="width:32px; height:32px; background:${bg}; color:${color}; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+            <div class="activity-item">
+                <div class="activity-icon" style="background:${bg}; color:${color};">
                     <i class="${icon}"></i>
                 </div>
                 <div>
-                    <div style="font-size:0.9em;"><strong>New ${d.role}</strong> joined: ${d.name}</div>
-                    <small style="color:#999; font-size:0.8em;">${date}</small>
+                    <div style="font-size:0.95rem; font-weight:500;">New ${d.role} Registration</div>
+                    <div style="font-size:0.85em; color:#666;">${d.name} joined.</div>
+                    <small style="color:#999; font-size:0.75em;">${date}</small>
                 </div>
             </div>`;
         });
@@ -294,28 +303,44 @@ async function loadDeptFeedback() {
             if (fSem !== 'all' && (d.semester || '1') !== fSem) show = false;
 
             if (show) {
+                // Match Admin Dashboard Card Style
                 const tName = allMyTeachers.find(t => t.id === d.teacher_id)?.name || 'Unknown Faculty';
                 const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
-                const color = d.rating < 3 ? '#ef4444' : (d.rating >= 4 ? '#10b981' : '#f59e0b');
-                const stars = '★'.repeat(d.rating) + '☆'.repeat(5 - d.rating);
+
+                let colorClass = '#f59e0b';
+                let statusClass = 'neutral';
+                if (d.rating <= 2) { colorClass = '#ef4444'; statusClass = 'negative'; }
+                if (d.rating >= 4) { colorClass = '#10b981'; statusClass = 'positive'; }
 
                 html += `
-                <div class="feedback-card">
-                    <div style="padding:1rem; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
-                         <div>
-                            <span style="font-weight:600; font-size:0.95em;">${tName}</span>
-                         </div>
-                         <div style="color:${color}; font-weight:bold;">${stars}</div>
+                    <div class="feedback-card ${statusClass}">
+                        <div class="feedback-header">
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <img src="https://ui-avatars.com/api/?name=${tName}&background=random&size=32" style="width:32px; height:32px; border-radius:50%;">
+                                <div style="line-height:1.2;">
+                                    <div style="font-weight:600; font-size:0.95rem;">${tName}</div>
+                                    <div style="font-size:0.75rem; color:#666;">${d.subject || 'General'}</div>
+                                </div>
+                            </div>
+                            <span class="rating-badge" style="background:${colorClass}20; color:${colorClass}">${d.rating} ★</span>
+                        </div>
+                        <div class="feedback-body">
+                             <!-- Admin uses H4 for subject, but we put it in header subtext for better Dept context where Dept is constant. 
+                                  If we want exact match, we can put it here too, but let's keep Body for comments. 
+                                  Actually, Admin puts Subject in Body H4. Let's do that for strict consistency if user insists?
+                                  User said "Make it similar". 
+                                  My previous plan: Header=Name+Subject. Body=Comment. 
+                                  Admin Plan: Header=Name+Dept. Body=Subject+Comment.
+                                  Since Dept is constant here, using Subject in Header is smarter use of space. 
+                                  I will put Subject in Header subtext, and clear Body for just comment. -->
+                            <p style="color:#475569; font-size:0.95em; line-height:1.5;">"${d.comments || ''}"</p>
+                        </div>
+                        <div class="feedback-footer">
+                            <span><i class="ri-calendar-line"></i> ${date}</span>
+                            <span>${d.session || '-'} | Y${d.year || '-'}</span>
+                        </div>
                     </div>
-                    <div style="padding:1rem;">
-                        <span style="background:#f3f4f6; color:#555; font-size:0.75em; padding:0.2rem 0.5rem; border-radius:4px;">${d.subject || 'General'}</span>
-                        <p style="margin-top:0.75rem; color:#444; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
-                    </div>
-                    <div style="background:#fafafa; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; display:flex; justify-content:space-between; font-size:0.8em; color:#888;">
-                        <span>${d.session || 'N/A'} | Year ${d.year || '-'} Sem ${d.semester || '-'}</span>
-                        <span>${date}</span>
-                    </div>
-                </div>`;
+                `;
             }
         });
         container.innerHTML = html || '<p style="grid-column:1/-1; text-align:center;">No feedback matches filters.</p>';
@@ -340,23 +365,33 @@ function loadDeptApprovals() {
         snap.forEach(doc => {
             const u = doc.data();
             const actionBtns = `
-                 <button class="btn btn-primary" style="padding:0.25rem 0.5rem; font-size:0.8em;" onclick="approveUser('${doc.id}')">Approve</button>
-                 <button class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.8em;" onclick="rejectUser('${doc.id}')">Reject</button>`;
+                 <button class="btn btn-primary" style="padding:0.25rem 0.75rem; font-size:0.8em; border-radius:20px;" onclick="approveUser('${doc.id}')">Approve</button>
+                 <button class="btn btn-outline" style="padding:0.25rem 0.75rem; font-size:0.8em; border-radius:20px; color:#ef4444; border-color:#ef4444;" onclick="rejectUser('${doc.id}')">Reject</button>`;
+
+            const pill = `<span style="background:#fef3c7; color:#d97706; padding:0.2rem 0.6rem; border-radius:1rem; font-size:0.75em; font-weight:600;">Pending</span>`;
 
             if (u.role === 'student') {
                 sCount++;
-                sHTML += `<tr><td>${u.name}</td><td>${u.regNum || '-'}</td><td>${actionBtns}</td></tr>`;
+                sHTML += `<tr>
+                    <td><div>${u.name}</div><small style="color:#666;">${pill}</small></td>
+                    <td>${u.regNum || '-'}</td>
+                    <td><div style="display:flex; gap:0.5rem;">${actionBtns}</div></td>
+                </tr>`;
             } else if (u.role === 'teacher') {
                 tCount++;
-                tHTML += `<tr><td>${u.name}</td><td>${u.email}</td><td>${actionBtns}</td></tr>`;
+                tHTML += `<tr>
+                    <td><div>${u.name}</div><small style="color:#666;">${pill}</small></td>
+                    <td>${u.email}</td>
+                    <td><div style="display:flex; gap:0.5rem;">${actionBtns}</div></td>
+                </tr>`;
             }
         });
 
         sHTML += '</tbody></table>';
         tHTML += '</tbody></table>';
 
-        sContainer.innerHTML = sCount ? sHTML : '<p style="color:#666; padding:1rem;">No pending students.</p>';
-        tContainer.innerHTML = tCount ? tHTML : '<p style="color:#666; padding:1rem;">No pending teachers.</p>';
+        sContainer.innerHTML = sCount ? sHTML : '<p style="color:#666; padding:1.5rem; text-align:center;">No pending students.</p>';
+        tContainer.innerHTML = tCount ? tHTML : '<p style="color:#666; padding:1.5rem; text-align:center;">No pending teachers.</p>';
     });
 }
 
@@ -442,24 +477,82 @@ window.approveUser = async (uid) => { await db.collection('users').doc(uid).upda
 window.rejectUser = async (uid) => { if (confirm("Reject?")) await db.collection('users').doc(uid).delete(); }
 window.toggleTeacherReview = async (tid, val) => { await db.collection('users').doc(tid).update({ isReviewOpen: val }); }
 
-function loadDeptAnalytics() {
-    const ctx = document.getElementById('deptPerformanceChart').getContext('2d');
-    db.collection('feedback').where('department', '==', currentDeptId).get().then(snap => {
-        const map = {};
-        snap.forEach(d => {
-            const data = d.data();
-            if (!map[data.teacher_id]) map[data.teacher_id] = [];
-            map[data.teacher_id].push(data.rating);
-        });
+// --- 3. ANALYTICS (Redesigned) ---
+let dSubChart = null, dPartChart = null, dDistChart = null, dTrendChart = null;
 
-        const labels = [], data = [];
-        allMyTeachers.forEach(t => {
-            labels.push(t.name);
-            const r = map[t.id] || [];
-            data.push(r.length ? (r.reduce((a, b) => a + b, 0) / r.length) : 0);
-        });
+async function loadDeptAnalytics() {
+    const feedbackSnap = await db.collection('feedback').where('department', '==', currentDeptId).get();
 
-        new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Avg Rating', data, backgroundColor: '#3b82f6' }] }, options: { scales: { y: { max: 5 } } } });
+    // Aggregation Vars
+    const subRatings = {};
+    const ratingDist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const dateTrend = {};
+
+    feedbackSnap.forEach(doc => {
+        const d = doc.data();
+
+        // 1. Avg by Subject
+        let sub = d.subject || 'General';
+        if (!subRatings[sub]) subRatings[sub] = [];
+        subRatings[sub].push(Number(d.rating));
+
+        // 2. Distribution
+        let r = Math.round(Number(d.rating));
+        if (r < 1) r = 1; if (r > 5) r = 5;
+        ratingDist[r]++;
+
+        // 3. Trend
+        if (d.submitted_at) {
+            const dateKey = new Date(d.submitted_at.seconds * 1000).toLocaleDateString();
+            dateTrend[dateKey] = (dateTrend[dateKey] || 0) + 1;
+        }
+    });
+
+    // Chart 1: Subject Performance
+    const labels = Object.keys(subRatings);
+    const data = labels.map(s => {
+        const arr = subRatings[s];
+        return (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1);
+    });
+
+    if (dSubChart) dSubChart.destroy();
+    dSubChart = new Chart(document.getElementById('deptSubjectChart').getContext('2d'), {
+        type: 'bar',
+        data: { labels: labels.length ? labels : ['No Data'], datasets: [{ label: 'Avg Rating', data: data.length ? data : [0], backgroundColor: 'rgba(16, 185, 129, 0.5)', borderColor: '#10b981', borderWidth: 1 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 5 } } }
+    });
+
+    // Chart 2: Participation (Dummy vs Real)
+    if (dPartChart) dPartChart.destroy();
+    dPartChart = new Chart(document.getElementById('deptParticipationChart').getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: ['Submitted', 'Pending'], datasets: [{ data: [feedbackSnap.size, Math.max(0, 100 - feedbackSnap.size)], backgroundColor: ['#3b82f6', '#e5e7eb'] }] },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Chart 3: Distribution
+    const distData = [ratingDist[1], ratingDist[2], ratingDist[3], ratingDist[4], ratingDist[5]];
+    if (dDistChart) dDistChart.destroy();
+    dDistChart = new Chart(document.getElementById('deptRatingDistChart').getContext('2d'), {
+        type: 'polarArea',
+        data: {
+            labels: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'],
+            datasets: [{ data: distData, backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Chart 4: Trend
+    const sortedDates = Object.keys(dateTrend).sort((a, b) => new Date(a) - new Date(b)).slice(-7);
+    const trendData = sortedDates.map(d => dateTrend[d]);
+    if (dTrendChart) dTrendChart.destroy();
+    dTrendChart = new Chart(document.getElementById('deptTrendChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: sortedDates,
+            datasets: [{ label: 'Submissions', data: trendData, borderColor: '#8b5cf6', tension: 0.3, fill: true, backgroundColor: 'rgba(139, 92, 246, 0.1)' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { set: 1 } } } }
     });
 }
 // --- Manage Subjects Logic ---

@@ -262,7 +262,7 @@
                         Approvals</a></li>
                 <li><a class="sidebar-link" onclick="switchTab('students', this)"><i class="ri-group-line"></i>
                         Students</a></li>
-                <li><a class="sidebar-link" onclick="switchTab('teachers', this)"><i class="ri-group-line"></i>
+                <li><a class="sidebar-link" onclick="switchTab('teachers', this)"><i class="ri-user-3-line"></i>
                         Teachers</a></li>
                 <li><a class="sidebar-link" onclick="switchTab('profile', this)"><i class="ri-user-settings-line"></i>
                         Profile</a></li>
@@ -342,11 +342,32 @@
                 </section>
 
                 <!-- 3. ANALYTICS -->
+                <!-- 3. ANALYTICS -->
                 <section id="tab-analytics" class="tab-section">
-                    <div class="card">
-                        <h3>Teacher Performance (Current Session)</h3>
-                        <div style="height: 350px; position: relative;">
-                            <canvas id="deptPerformanceChart"></canvas>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                        <div class="card">
+                            <h3>Subject Performance (Avg Rating)</h3>
+                            <div class="chart-container">
+                                <canvas id="deptSubjectChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Participation Rate</h3>
+                            <div class="chart-container">
+                                <canvas id="deptParticipationChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Rating Distribution</h3>
+                            <div class="chart-container">
+                                <canvas id="deptRatingDistChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Feedback Trend (Last 7 Days)</h3>
+                            <div class="chart-container">
+                                <canvas id="deptTrendChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -509,19 +530,51 @@
                 </section>
 
                 <!-- 8. PROFILE -->
+                <!-- 8. PROFILE -->
                 <section id="tab-profile" class="tab-section">
                     <div class="card">
-                        <h3>Department Profile</h3>
-                        <div style="display:grid; gap:1rem; margin-top:1rem; max-width:500px;">
-                            <div><label style="font-size:0.85em; font-weight:600; color:#666;">Department
-                                    Name</label><input type="text" id="pName" class="form-control" disabled
-                                    style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;"></div>
-                            <div><label style="font-size:0.85em; font-weight:600; color:#666;">Department
-                                    Code</label><input type="text" id="pId" class="form-control" disabled
-                                    style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;"></div>
-                            <div><label style="font-size:0.85em; font-weight:600; color:#666;">Active
-                                    Session</label><input type="text" id="pSessionDisplay" class="form-control" disabled
-                                    style="width:100%; padding:0.5rem; border:1px solid #ddd; border-radius:4px;"></div>
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <h3>Department Profile</h3>
+                            <button class="btn btn-sm btn-outline" onclick="logout()"><i
+                                    class="ri-logout-box-r-line"></i> Sign Out</button>
+                        </div>
+                        <div style="display:flex; gap:2.5rem; margin-top:2rem; align-items:flex-start;">
+                            <div style="text-align:center;">
+                                <img src="" alt="Profile"
+                                    style="width:120px; height:120px; border-radius:50%; box-shadow: var(--shadow-md);"
+                                    id="profile-avatar-large">
+                                <p style="margin-top:0.5rem; font-weight:600; color:var(--neutral-700);"
+                                    id="profile-role-display">Department Admin</p>
+                            </div>
+
+                            <div
+                                style="flex:1; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:2rem;">
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Department
+                                        Name</label>
+                                    <div class="h4" id="pNameDisplay" style="font-size:1.1rem; margin-top:0.25rem;">--
+                                    </div>
+                                </div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Email
+                                        Address</label>
+                                    <div class="h4" id="pEmailDisplay" style="font-size:1.1rem; margin-top:0.25rem;">--
+                                    </div>
+                                </div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Active
+                                        Session</label>
+                                    <div class="h4" id="pSessionDisplay"
+                                        style="font-size:1.1rem; margin-top:0.25rem; color:#16a34a;">--</div>
+                                </div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Dept
+                                        ID</label>
+                                    <div class="h4" id="pIdDisplay"
+                                        style="font-size:0.9rem; font-family:monospace; color:#666; margin-top:0.25rem;">
+                                        --</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>

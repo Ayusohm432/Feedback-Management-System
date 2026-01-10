@@ -22,11 +22,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('s-avatar').src = `https://ui-avatars.com/api/?name=${currentUserDoc.name}&background=0D8ABC&color=fff`;
 
                 // Profile Fields
-                document.getElementById('pName').value = currentUserDoc.name;
-                document.getElementById('pEmail').value = currentUserDoc.email;
-                document.getElementById('pDept').value = currentUserDoc.department;
-                document.getElementById('pYear').value = currentUserDoc.year || '-';
-                document.getElementById('pSem').value = currentUserDoc.semester || '-';
+                // Profile Fields (New Design)
+                document.getElementById('pNameDisplay').innerText = currentUserDoc.name;
+                document.getElementById('pEmailDisplay').innerText = currentUserDoc.email;
+                document.getElementById('pRegDisplay').innerText = currentUserDoc.registerNumber || user.uid.substring(0, 8).toUpperCase();
+                document.getElementById('pDeptDisplay').innerText = currentUserDoc.department || 'N/A';
+                document.getElementById('pYearSemDisplay').innerText = `Year ${currentUserDoc.year || '-'} / Sem ${currentUserDoc.semester || '-'}`;
+                // Session is not directly stored on user usually, but if it is:
+                document.getElementById('pSessionDisplay').innerText = currentUserDoc.session || 'Current';
+                document.getElementById('profile-avatar-large').src = `https://ui-avatars.com/api/?name=${currentUserDoc.name}&background=0D8ABC&color=fff&size=128`;
 
                 // Load Data
                 loadStats();
@@ -380,14 +384,43 @@ function loadHistory() {
         checkReviewStatus(); // Sync
         loadOpenReviews();
 
+        checkReviewStatus(); // Sync
+        loadOpenReviews();
+
         docs.sort((a, b) => (b.submitted_at?.seconds || 0) - (a.submitted_at?.seconds || 0));
 
-        let html = '';
-        docs.forEach(d => {
-            const tName = teacherDataMap[d.teacher_id] ? teacherDataMap[d.teacher_id].name : 'Teacher';
-            const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
+        // Cache globally for filtering
+        window.allHistoryDocs = docs;
+        filterHistory();
+    });
+}
 
-            html += `
+function filterHistory() {
+    const container = document.getElementById('history-container');
+    const fYear = document.getElementById('histFilterYear').value;
+    const fSem = document.getElementById('histFilterSem').value;
+    const docs = window.allHistoryDocs || [];
+
+    if (!container) return;
+
+    let html = '';
+    let hasData = false;
+
+    docs.forEach(d => {
+        // Filter Logic
+        // d.year and d.semester are stored in feedback. 
+        // If not present (old data), we treat as "1" or exclude? Let's match if possible or show if 'all'.
+        const dYear = (d.year || '1').toString();
+        const dSem = (d.semester || '1').toString();
+
+        if (fYear !== 'all' && dYear !== fYear) return;
+        if (fSem !== 'all' && dSem !== fSem) return;
+
+        hasData = true;
+        const tName = teacherDataMap[d.teacher_id] ? teacherDataMap[d.teacher_id].name : 'Teacher';
+        const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
+
+        html += `
              <div class="feedback-card" style="border-left: 4px solid var(--primary);">
                 <div style="padding:1rem; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
                     <div>
@@ -407,8 +440,11 @@ function loadHistory() {
                     <span>${date}</span>
                 </div>
              </div>`;
-        });
-
-        container.innerHTML = html;
     });
+
+    if (!hasData) {
+        container.innerHTML = `<div style="text-align:center; padding:2rem; color:#999;">No history matches the selected filters.</div>`;
+    } else {
+        container.innerHTML = html;
+    }
 }

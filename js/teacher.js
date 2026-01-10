@@ -19,10 +19,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('t-email-display').innerText = currentUserDoc.email;
                 document.getElementById('t-avatar').src = `https://ui-avatars.com/api/?name=${currentUserDoc.name}&background=0D8ABC&color=fff`;
 
-                // Profile Fields
-                document.getElementById('pName').value = currentUserDoc.name;
-                document.getElementById('pEmail').value = currentUserDoc.email;
-                document.getElementById('pDept').value = currentUserDoc.department;
+                // Profile Fields (New Design)
+                document.getElementById('pNameDisplay').innerText = currentUserDoc.name;
+                document.getElementById('pEmailDisplay').innerText = currentUserDoc.email;
+                document.getElementById('pDeptDisplay').innerText = currentUserDoc.department || 'N/A';
+                document.getElementById('pIdDisplay').innerText = user.uid; // Or custom field if exists
+                document.getElementById('profile-avatar-large').src = `https://ui-avatars.com/api/?name=${currentUserDoc.name}&background=0D8ABC&color=fff&size=128`;
 
                 // Load Data
                 loadStats();
@@ -176,21 +178,30 @@ async function loadTeacherFeedback() {
             if (filterSemester !== 'all' && (d.semester || '1') !== filterSemester) return;
 
             const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
-            const color = d.rating < 3 ? '#ef4444' : (d.rating >= 4 ? '#10b981' : '#f59e0b');
-            const stars = '★'.repeat(d.rating) + '☆'.repeat(5 - d.rating);
+
+            let colorClass = '#f59e0b';
+            let statusClass = 'neutral';
+            if (d.rating <= 2) { colorClass = '#ef4444'; statusClass = 'negative'; }
+            if (d.rating >= 4) { colorClass = '#10b981'; statusClass = 'positive'; }
 
             const card = `
-            <div class="feedback-card">
-                <div style="padding:1rem; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:600; font-size:0.9em; color:#666;">${d.subject || 'General'}</span>
-                        <div style="color:${color}; font-weight:bold;">${stars}</div>
+            <div class="feedback-card ${statusClass}">
+                <div class="feedback-header">
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                         <img src="https://ui-avatars.com/api/?name=${currentUserDoc.name}&background=random&size=32" style="width:32px; height:32px; border-radius:50%;">
+                        <div style="line-height:1.2;">
+                            <div style="font-weight:600; font-size:0.95rem;">${d.subject || 'General'}</div>
+                            <div style="font-size:0.75rem; color:#666;">${currentUserDoc.name}</div>
+                        </div>
+                    </div>
+                    <span class="rating-badge" style="background:${colorClass}20; color:${colorClass}">${d.rating} ★</span>
                 </div>
-                <div style="padding:1rem;">
-                    <p style="color:#444; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
+                <div class="feedback-body">
+                    <p style="color:#475569; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
                 </div>
-                <div style="background:#fafafa; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; display:flex; justify-content:space-between; font-size:0.8em; color:#888;">
-                    <span>${d.session || 'N/A'} | Year ${d.year || '-'} Sem ${d.semester || '-'}</span>
-                    <span>${date}</span>
+                <div class="feedback-footer">
+                    <span><i class="ri-calendar-line"></i> ${date}</span>
+                    <span>${d.session || '-'} | Y${d.year || '-'}</span>
                 </div>
             </div>`;
 
