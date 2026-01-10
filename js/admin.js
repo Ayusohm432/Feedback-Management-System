@@ -157,17 +157,27 @@ function filterTeacherList() {
 }
 function renderUserTable(users, role, container) {
     if (users.length === 0) { container.innerHTML = "No users found."; return; }
-    let headers = ['Name', 'Email'];
-    if (role === 'student') headers.push('Reg No', 'Dept', 'Year/Sem', 'Session');
+    let headers = [];
+    if (role === 'student') headers = ['<input type="checkbox" onchange="toggleAllStudents(this)">', 'Name', 'Email', 'Reg No', 'Dept', 'Year/Sem', 'Session'];
+    else headers = ['Name', 'Email'];
+
     if (role === 'department') headers.push('Dept ID', 'Name', 'Session');
     if (role === 'teacher') headers.push('Dept', 'Review Status', 'Subjects');
 
     let html = `<table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
     users.forEach(u => {
         html += `<tr>
-            <td>${u.name}</td>
-            <td>${u.email}</td>
-            ${role === 'student' ? `<td>${u.regNum || '-'}</td><td>${u.department || 'General'}</td><td>Y${u.year || '1'}-S${u.semester || '1'}</td><td>${u.session || '-'}</td>` : ''}
+            ${role === 'student' ? `
+                <td><input type="checkbox" class="student-checkbox" value="${u.id}"></td>
+                <td>${u.name}</td>
+                <td>${u.email}</td>
+                <td>${u.regNum || '-'}</td>
+                <td>${u.department || 'General'}</td>
+                <td>Y${u.year || '1'}-S${u.semester || '1'}</td>
+                <td>${u.session || '-'}</td>` : `
+                <td>${u.name}</td>
+                <td>${u.email}</td>
+            `}
             ${role === 'department' ? `<td>${u.deptId || '-'}</td><td>${u.name}</td><td>${u.session || '-'}</td>` : ''}
             ${role === 'teacher' ? `<td>${u.department || 'General'}</td><td><label class="switch"><input type="checkbox" ${u.isReviewOpen ? 'checked' : ''} onchange="toggleReviewStatus('${u.id}', this.checked)"><span class="slider round"></span></label><span style="font-size:0.8em; margin-left:0.5rem; color:${u.isReviewOpen ? '#16a34a' : '#999'}">${u.isReviewOpen ? 'Open' : 'Closed'}</span></td><td><button class="btn btn-sm btn-outline" onclick="openSubjectModal('${u.id}')">Manage</button></td>` : ''}
         </tr>`;
@@ -492,6 +502,104 @@ window.closeSubjectModal = closeSubjectModal;
 window.handleAddSubject = handleAddSubject;
 window.toggleSubjectStatus = toggleSubjectStatus;
 window.deleteSubject = deleteSubject;
+
+// --- Student Promotion/Demotion Logic ---
+
+window.toggleAllStudents = (source) => {
+    document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = source.checked);
+};
+
+window.promoteSelectedStudents = async () => {
+    const selected = Array.from(document.querySelectorAll('.student-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) return alert("No students selected.");
+    if (!confirm(`Are you sure you want to PROMOTE ${selected.length} students?`)) return;
+
+    await processBatchUpdate(selected, 1);
+};
+
+window.demoteSelectedStudents = async () => {
+    const selected = Array.from(document.querySelectorAll('.student-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) return alert("No students selected.");
+    if (!confirm(`Are you sure you want to DEMOTE ${selected.length} students?`)) return;
+
+    await processBatchUpdate(selected, -1);
+};
+
+window.promoteAllStudents = async () => {
+    // Uses current filtered list (allStudents or filtered view)
+    // We can grab IDs from the DOM to respect current filter
+    const visibleIds = Array.from(document.querySelectorAll('.student-checkbox')).map(cb => cb.value);
+    if (visibleIds.length === 0) return alert("No students listing.");
+    if (!confirm(`Are you sure you want to PROMOTE ALL ${visibleIds.length} listed students?`)) return;
+
+    await processBatchUpdate(visibleIds, 1);
+};
+
+async function processBatchUpdate(ids, direction) {
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Show loading state if possible or just alert at end
+    // For better UX, we could disable buttons
+
+    for (const uid of ids) {
+        try {
+            // Find student data in local cache to calculate next level
+            const student = allStudents.find(s => s.id === uid);
+            if (!student) continue;
+
+            const currentYear = parseInt(student.year) || 1;
+            const currentSem = parseInt(student.semester) || 1;
+
+            const { newYear, newSem } = calculateNewLevel(currentYear, currentSem, direction);
+
+            if (newYear !== currentYear || newSem !== currentSem) {
+                await db.collection('users').doc(uid).update({
+                    year: newYear.toString(),
+                    semester: newSem.toString()
+                });
+                successCount++;
+            }
+        } catch (e) {
+            console.error(e);
+            errorCount++;
+        }
+    }
+
+    alert(`Operation Complete.\nUpdated: ${successCount}\nFailed: ${errorCount}`);
+}
+
+function calculateNewLevel(year, sem, direction) {
+    // Logic: 
+    // Promote (+1): 1-1 -> 1-2 -> 2-3 -> 2-4 -> 3-5 -> 3-6 -> 4-7 -> 4-8 -> Graduated?
+    // Wait, typical engineering: Year 1 (Sem 1, 2), Year 2 (Sem 3, 4), Year 3 (Sem 5, 6), Year 4 (Sem 7, 8)
+    // So Sem is the driver.
+    // Sem 1 -> 2 (Same Year 1)
+    // Sem 2 -> 3 (Year changes to 2)
+
+    let newSem = sem + direction;
+    let newYear = year;
+
+    if (direction > 0) { // Promoting
+        // If New Sem is Odd (e.g., 3, 5, 7), it means we just finished an Even sem, so Year increases
+        // Example: Was Sem 2. New Sem 3. Year was 1. Now Year 2.
+        // Formula: Year = Math.ceil(newSem / 2)
+        newYear = Math.ceil(newSem / 2);
+    } else { // Demoting
+        if (newSem < 1) {
+            newSem = 1;
+            newYear = 1;
+        } else {
+            newYear = Math.ceil(newSem / 2);
+        }
+    }
+
+    // Safety caps
+    if (newYear > 4) newYear = 4; // Assuming 4 year course, or let it go to 5? Let's cap at 4-8 for now or maybe 5-9? 
+    // Actually, let's just restrict logic to Math.ceil. If they go to Sem 9, Year is 5.
+
+    return { newYear, newSem };
+}
 
 // Init
 document.addEventListener('DOMContentLoaded', () => { loadStats(); loadActivityFeed(); loadProfile(); });

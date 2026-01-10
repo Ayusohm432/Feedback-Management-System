@@ -6,6 +6,7 @@
 let currentDeptId = null; // e.g., "105"
 let currentDeptDoc = null;
 let allMyTeachers = [];
+let allDeptStudents = []; // Cache for student management logic
 
 // Init
 document.addEventListener('DOMContentLoaded', async () => {
@@ -216,12 +217,21 @@ function loadDeptStudents() {
         .where('role', '==', 'student')
         .where('department', '==', currentDeptId)
         .onSnapshot(snap => {
+            allDeptStudents = []; // Reset
             const container = document.getElementById('dept-students-list');
             if (snap.empty) { container.innerHTML = "<p>No particular students.</p>"; return; }
-            let html = '<table class="w-full"><thead><tr><th>Reg No</th><th>Name</th><th>Session</th></tr></thead><tbody>';
+
+            let html = '<table class="w-full"><thead><tr><th><input type="checkbox" onchange="toggleAllStudents(this)"></th><th>Reg No</th><th>Name</th><th>Year/Sem</th><th>Session</th></tr></thead><tbody>';
             snap.forEach(doc => {
-                const s = doc.data();
-                html += `<tr><td>${s.regNum}</td><td>${s.name}</td><td>${s.session}</td></tr>`;
+                const s = { id: doc.id, ...doc.data() };
+                allDeptStudents.push(s);
+                html += `<tr>
+                    <td><input type="checkbox" class="student-checkbox" value="${s.id}"></td>
+                    <td>${s.regNum}</td>
+                    <td>${s.name}</td>
+                    <td>Y${s.year || '1'}-S${s.semester || '1'}</td>
+                    <td>${s.session}</td>
+                </tr>`;
             });
             html += '</tbody></table>';
             container.innerHTML = html;
@@ -529,6 +539,90 @@ async function deleteSubject(teacherId, index) {
         await docRef.update({ assignedSubjects: subjects });
         loadAssignedSubjects(teacherId);
     } catch (err) { alert("Error deleting: " + err.message); }
+}
+
+
+// --- Student Promotion/Demotion Logic (Replicated from Admin) ---
+
+window.toggleAllStudents = (source) => {
+    document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = source.checked);
+};
+
+window.promoteSelectedStudents = async () => {
+    const selected = Array.from(document.querySelectorAll('.student-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) return alert("No students selected.");
+    if (!confirm(`Are you sure you want to PROMOTE ${selected.length} students?`)) return;
+
+    await processBatchUpdate(selected, 1);
+};
+
+window.demoteSelectedStudents = async () => {
+    const selected = Array.from(document.querySelectorAll('.student-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) return alert("No students selected.");
+    if (!confirm(`Are you sure you want to DEMOTE ${selected.length} students?`)) return;
+
+    await processBatchUpdate(selected, -1);
+};
+
+window.promoteAllStudents = async () => {
+    // Uses cached list
+    if (allDeptStudents.length === 0) return alert("No students listing.");
+    if (!confirm(`Are you sure you want to PROMOTE ALL ${allDeptStudents.length} students?`)) return;
+
+    const ids = allDeptStudents.map(s => s.id);
+    await processBatchUpdate(ids, 1);
+};
+
+async function processBatchUpdate(ids, direction) {
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Note: In a real app, use a BatchWrite or Cloud Function.
+    // Here we loop clientside.
+    for (const uid of ids) {
+        try {
+            const student = allDeptStudents.find(s => s.id === uid);
+            if (!student) continue;
+
+            const currentYear = parseInt(student.year) || 1;
+            const currentSem = parseInt(student.semester) || 1;
+
+            const { newYear, newSem } = calculateNewLevel(currentYear, currentSem, direction);
+
+            if (newYear !== currentYear || newSem !== currentSem) {
+                await db.collection('users').doc(uid).update({
+                    year: newYear.toString(),
+                    semester: newSem.toString()
+                });
+                successCount++;
+            }
+        } catch (e) {
+            console.error(e);
+            errorCount++;
+        }
+    }
+
+    alert(`Operation Complete.\nUpdated: ${successCount}\nFailed: ${errorCount}`);
+}
+
+function calculateNewLevel(year, sem, direction) {
+    let newSem = sem + direction;
+    let newYear = year;
+
+    if (direction > 0) { // Promoting
+        newYear = Math.ceil(newSem / 2);
+    } else { // Demoting
+        if (newSem < 1) {
+            newSem = 1;
+            newYear = 1;
+        } else {
+            newYear = Math.ceil(newSem / 2);
+        }
+    }
+
+    if (newYear > 4) newYear = 4;
+
+    return { newYear, newSem };
 }
 
 // Bind to window

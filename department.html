@@ -447,7 +447,20 @@
                         </div>
                     </div>
                     <div class="card">
-                        <h3>Registered Students</h3>
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
+                            <h3 style="margin:0;">Registered Students</h3>
+                            <div id="dept-student-actions" style="display:flex; gap:0.5rem;">
+                                <button class="btn btn-sm btn-outline" onclick="promoteSelectedStudents()"
+                                    title="Promote Selected"><i class="ri-arrow-up-double-line"></i> Promote
+                                    Selected</button>
+                                <button class="btn btn-sm btn-outline" onclick="demoteSelectedStudents()"
+                                    title="Demote Selected"><i class="ri-arrow-down-double-line"></i> Demote
+                                    Selected</button>
+                                <button class="btn btn-sm btn-primary" onclick="promoteAllStudents()"
+                                    title="Promote All Listed">Promote All</button>
+                            </div>
+                        </div>
                         <div id="dept-students-list">Loading...</div>
                     </div>
                 </section>

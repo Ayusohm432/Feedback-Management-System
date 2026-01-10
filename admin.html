@@ -509,12 +509,25 @@
                         </div>
                     </div>
                     <div class="card">
-                        <div style="display:flex; justify-content:space-between;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                             <h3>Registered Students</h3>
-                            <select id="studentDeptFilter" onchange="filterStudentList()"
-                                style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
-                                <option value="all">All Departments</option>
-                            </select>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <div id="student-bulk-actions" style="display:flex; gap:0.5rem;">
+                                    <button class="btn btn-sm btn-outline" onclick="promoteSelectedStudents()"
+                                        title="Promote Selected"><i class="ri-arrow-up-double-line"></i> Promote
+                                        Selected</button>
+                                    <button class="btn btn-sm btn-outline" onclick="demoteSelectedStudents()"
+                                        title="Demote Selected"><i class="ri-arrow-down-double-line"></i> Demote
+                                        Selected</button>
+                                    <button class="btn btn-sm btn-primary" onclick="promoteAllStudents()"
+                                        title="Promote All in List">Promote All Listed</button>
+                                </div>
+                                <select id="studentDeptFilter" onchange="filterStudentList()"
+                                    style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                    <option value="all">All Departments</option>
+                                </select>
+                            </div>
                         </div>
                         <div id="students-table-container">Loading...</div>
                     </div>

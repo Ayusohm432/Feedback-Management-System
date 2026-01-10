@@ -129,6 +129,12 @@ function getValidSubjects(teacher) {
 }
 
 
+
+// Helper for consistent key generation
+function getFeedbackKey(tid, year, sem, session, subject) {
+    return `${tid}_${year}_${sem}_${session}_${subject}`;
+}
+
 // 2. UPDATED loadOpenReviews
 function loadOpenReviews() {
     const container = document.getElementById('open-reviews-grid');
@@ -149,6 +155,9 @@ function loadOpenReviews() {
         let html = '';
         let visibleCount = 0;
 
+        const myYear = (currentUserDoc.year || '1').toString();
+        const mySem = (currentUserDoc.semester || '1').toString();
+
         snap.forEach(doc => {
             const t = doc.data();
             const tid = doc.id;
@@ -161,14 +170,12 @@ function loadOpenReviews() {
             visibleCount++;
             const session = t.activeSession || 'General';
 
-            // Check if ALL valid subjects are submitted? Or ANY?
-            // "Give Feedback" should remain active if there are subjects left to review.
-            // We'll check if there is AT LEAST ONE subject not yet submitted.
-
+            // Check if ALL valid subjects are submitted
             let pendingSubjects = [];
             validSubjects.forEach(s => {
-                // Key: Teacher + Session + SubjectName
-                if (!submittedSessions.has(`${tid}_${session}_${s.name}`)) {
+                // Key: Teacher + Year + Sem + Session + SubjectName
+                const key = getFeedbackKey(tid, myYear, mySem, session, s.name);
+                if (!submittedSessions.has(key)) {
                     pendingSubjects.push(s.name);
                 }
             });
@@ -247,12 +254,12 @@ function checkReviewStatus() {
     // Creating options
     const session = teacher.activeSession || 'General';
     let availableCount = 0;
-    const year = currentUserDoc.year || '1';
-    const sem = currentUserDoc.semester || '1';
+    const year = (currentUserDoc.year || '1').toString();
+    const sem = (currentUserDoc.semester || '1').toString();
 
     validSubjects.forEach(s => {
-        // Check duplicate
-        const key = `${uid}_${year}_${sem}_${session}_${s.name}`;
+        // Check duplicate using standard Key
+        const key = getFeedbackKey(uid, year, sem, session, s.name);
         if (!submittedSessions.has(key)) {
             const opt = document.createElement('option');
             opt.value = s.name;
@@ -270,6 +277,22 @@ function checkReviewStatus() {
     }
 }
 
+
+function setRating(val) {
+    // Update hidden input
+    document.getElementById('ratingValue').value = val === 0 ? "" : val;
+
+    // Visual Update
+    document.querySelectorAll('.rating-btn').forEach((btn, index) => {
+        // Buttons are in order 1-5
+        if (val > 0 && index + 1 === val) {
+            btn.classList.add('selected');
+        } else {
+            btn.classList.remove('selected');
+        }
+    });
+}
+
 async function submitFeedback(e) {
     e.preventDefault();
     const rating = document.getElementById('ratingValue').value;
@@ -282,11 +305,14 @@ async function submitFeedback(e) {
     const teacher = teacherDataMap[teacherId];
     const session = teacher.activeSession || 'General';
 
-    const year = currentUserDoc.year || '1';
-    const sem = currentUserDoc.semester || '1';
+    const year = (currentUserDoc.year || '1').toString();
+    const sem = (currentUserDoc.semester || '1').toString();
 
-    if (submittedSessions.has(`${teacherId}_${year}_${sem}`)) {
-        return alert("Duplicate review.");
+    // STRICT DUPLICATE CHECK
+    const key = getFeedbackKey(teacherId, year, sem, session, subject);
+
+    if (submittedSessions.has(key)) {
+        return alert("Duplicate review: You have already submitted feedback for this subject.");
     }
 
     const data = {
@@ -297,8 +323,8 @@ async function submitFeedback(e) {
         comments: document.getElementById('comments').value,
         department: teacher.department || 'General',
         session: session,
-        year: currentUserDoc.year || '1',
-        semester: currentUserDoc.semester || '1',
+        year: year,
+        semester: sem,
         submitted_at: new Date()
     };
 
@@ -309,9 +335,8 @@ async function submitFeedback(e) {
         setRating(0);
         document.getElementById('ratingValue').value = "";
         loadHistory();
-        loadOpenReviews();
-        loadStats();
-        checkReviewStatus(); // Reset UI
+        // Note: loadHistory calls loadOpenReviews and checkReviewStatus internally, 
+        // so UI will refresh and submittedSessions will be updated.
     } catch (err) { console.error(err); alert("Error submitting feedback."); }
 }
 
@@ -336,9 +361,19 @@ function loadHistory() {
         snap.forEach(d => {
             const data = d.data();
             docs.push(data);
-            if (data.teacher_id && data.session && data.subject) {
-                // NEW KEY: TeacherID_Session_Subject
-                submittedSessions.add(`${data.teacher_id}_${data.session}_${data.subject}`);
+            if (data.teacher_id && data.year && data.semester && data.session && data.subject) {
+                // STANDARD KEY Generation from DB Data
+                const key = getFeedbackKey(data.teacher_id, data.year, data.semester, data.session, data.subject);
+                submittedSessions.add(key);
+            } else if (data.teacher_id && data.session && data.subject) {
+                // Fallback for old data without year/sem explicitly stored? 
+                // If we assume old data is invalid or we just try to map it.
+                // Ideally all data has year/sem. If not, we might miss duplicates, but for new data it works.
+                // Let's try to be safe.
+                const y = data.year || (currentUserDoc.year || '1').toString();
+                const s = data.semester || (currentUserDoc.semester || '1').toString();
+                const key = getFeedbackKey(data.teacher_id, y, s, data.session, data.subject);
+                submittedSessions.add(key);
             }
         });
 
