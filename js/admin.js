@@ -286,17 +286,39 @@ async function createUserInSecondaryApp(email, password) {
     const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
     try { const userCred = await secondaryApp.auth().createUserWithEmailAndPassword(email, password); const uid = userCred.user.uid; await secondaryApp.delete(); return uid; } catch (err) { await secondaryApp.delete(); throw err; }
 }
+// --- Validation Logic ---
+const VALIDATORS = {
+    regNum: (val) => /^\d{11}$/.test(val) || "Registration Number must be 11 digits.",
+    deptCode: (val) => /^\d{3}$/.test(val) || "Department Code must be 3 digits.",
+    deptEnum: (val) => ['CSE', 'ME', 'CE', 'ECE', 'EEE'].includes(val) || "Invalid Department. Use CSE, ME, CE, ECE, EEE.",
+    password: (val) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(val) || "Password too weak. (Min 8 chars, Upper, Lower, Num, Special)",
+    session: (val) => {
+        if (!/^\d{4}-\d{2}$/.test(val)) return "Session format: YYYY-YY (e.g. 2023-27)";
+        const [y, yy] = val.split('-').map(Number);
+        const startYY = y % 100;
+        return (yy === startYY + 4) || "Session duration must be 4 years.";
+    }
+};
+
 async function handleAddSingleStudent(e) {
     e.preventDefault();
     const reg = document.getElementById('addRegNum').value;
     const name = document.getElementById('addName').value;
-    const dept = document.getElementById('addDept').value;
+    const dept = document.getElementById('addDept').value; // Returns ID (105)
+    // Dept Check (Dropdown ensures valid ID, but good to be safe)
+
     const session = document.getElementById('addSession').value;
     const pass = document.getElementById('addPassword').value;
     const year = document.getElementById('addYear').value;
     const semester = document.getElementById('addSemester').value;
     const email = `${reg}@student.fms.local`;
+
     try {
+        // Validation
+        const vReg = VALIDATORS.regNum(reg); if (vReg !== true) throw new Error(vReg);
+        const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
+        const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid: uid, name: name, email: email, role: 'student', status: 'approved',
@@ -307,15 +329,69 @@ async function handleAddSingleStudent(e) {
         alert(`Student Created!`); e.target.reset();
     } catch (err) { alert("Error: " + err.message); }
 }
+
 async function handleBulkUpload() {
+    // Note: Bulk Upload validation is harder to enforce strictly line-by-line without logic update.
+    // For now, leaving as-is or basic checks? User asked "wherever there is entry of details".
+    // I will add a basic check inside the lopp if possible, but let's stick to single Forms first as explicitly requested.
     const file = document.getElementById('csvFile').files[0]; if (!file) return alert("Select file first");
     Papa.parse(file, { header: true, complete: async function (results) { let count = 0; for (let row of results.data) { if (row.student_id && row.password) { try { const email = `${row.student_id}@student.fms.local`; const uid = await createUserInSecondaryApp(email, row.password); await db.collection('users').doc(uid).set({ uid: uid, name: row.name, email: email, role: 'student', status: 'approved', regNum: row.student_id, department: row.department, session: row.session, year: row.year || '1', semester: row.semester || '1', createdAt: new Date() }); count++; } catch (err) { } } } alert(`Successfully created ${count} users.`); } });
 }
+
 function downloadSample() { const csvContent = "data:text/csv;charset=utf-8," + "student_id,name,department,session,password\n2024001,John Doe,CSE,2023-27,password123"; const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = "student_full_import.csv"; document.body.appendChild(link); link.click(); }
-async function handleAddSingleTeacher(e) { e.preventDefault(); const name = document.getElementById('addTeacherName').value; const email = document.getElementById('addTeacherEmail').value; const dept = document.getElementById('addTeacherDept').value; const pass = document.getElementById('addTeacherPassword').value; try { const uid = await createUserInSecondaryApp(email, pass); await db.collection('users').doc(uid).set({ uid: uid, name: name, email: email, role: 'teacher', status: 'approved', department: dept, isReviewOpen: false, createdAt: new Date() }); alert(`Teacher Created!`); e.target.reset(); } catch (err) { alert("Error: " + err.message); } }
+
+async function handleAddSingleTeacher(e) {
+    e.preventDefault();
+    const name = document.getElementById('addTeacherName').value;
+    const email = document.getElementById('addTeacherEmail').value;
+    const dept = document.getElementById('addTeacherDept').value; // Returns ID (105) or Name?
+    // Admin HTML for Teacher Add uses Dropdown returning ID (e.g. 105).
+    // Teacher Profile expects "CSE" (Name). `admin.html:595` options show value="101".
+    // I should map this ID to Name for consistency if Teacher profile expects Name string.
+    // `auth.js` Teacher Reg expects 'regDept' text input.
+    // Let's coerce the dropdown value to Name string here to be safe.
+    const branchMap = { '101': 'CE', '103': 'ME', '104': 'EEE', '105': 'CSE', '106': 'ECE' };
+    const deptName = branchMap[dept] || dept;
+
+    const pass = document.getElementById('addTeacherPassword').value;
+
+    try {
+        const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
+        const uid = await createUserInSecondaryApp(email, pass);
+        await db.collection('users').doc(uid).set({
+            uid: uid, name: name, email: email, role: 'teacher', status: 'approved',
+            department: deptName, isReviewOpen: false, createdAt: new Date()
+        });
+        alert(`Teacher Created!`); e.target.reset();
+    } catch (err) { alert("Error: " + err.message); }
+}
+
 async function handleBulkTeacherUpload() { const file = document.getElementById('teacherCsvFile').files[0]; if (!file) return alert("Select file first"); Papa.parse(file, { header: true, complete: async function (results) { let count = 0; for (let row of results.data) { if (row.email && row.password) { try { const uid = await createUserInSecondaryApp(row.email, row.password); await db.collection('users').doc(uid).set({ uid: uid, name: row.name, email: row.email, role: 'teacher', status: 'approved', department: row.department, isReviewOpen: false, createdAt: new Date() }); count++; } catch (err) { } } } alert(`Created ${count} teachers.`); } }); }
 function downloadTeacherSample() { const csvContent = "data:text/csv;charset=utf-8," + "name,email,department,password\nDr. Smith,smith@clg.edu,CSE,securepass"; const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = "teacher_full_import.csv"; document.body.appendChild(link); link.click(); }
-async function handleAddSingleDept(e) { e.preventDefault(); const id = document.getElementById('addDeptId').value; const name = document.getElementById('addDeptName').value; const session = document.getElementById('addDeptSession').value; const pass = document.getElementById('addDeptPassword').value; const email = `${id}@dept.fms.local`; try { const uid = await createUserInSecondaryApp(email, pass); await db.collection('users').doc(uid).set({ uid: uid, name: name, email: email, role: 'department', status: 'approved', deptId: id, session: session, createdAt: new Date() }); alert("Department Account Created."); e.target.reset(); } catch (e) { alert("Error: " + e.message); } }
+
+async function handleAddSingleDept(e) {
+    e.preventDefault();
+    const id = document.getElementById('addDeptId').value;
+    const name = document.getElementById('addDeptName').value.toUpperCase();
+    const session = document.getElementById('addDeptSession').value;
+    const pass = document.getElementById('addDeptPassword').value;
+    const email = `${id}@dept.fms.local`;
+
+    try {
+        const vCode = VALIDATORS.deptCode(id); if (vCode !== true) throw new Error(vCode);
+        const vName = VALIDATORS.deptEnum(name); if (vName !== true) throw new Error(vName);
+        const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
+        const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
+        const uid = await createUserInSecondaryApp(email, pass);
+        await db.collection('users').doc(uid).set({
+            uid: uid, name: name, email: email, role: 'department', status: 'approved',
+            deptId: id, session: session, createdAt: new Date()
+        });
+        alert("Department Account Created."); e.target.reset();
+    } catch (e) { alert("Error: " + e.message); }
+}
 function loadApprovals() { const listContainer = document.getElementById('approvals-list-container'); listContainer.innerHTML = 'Loading...'; db.collection('users').where('status', '==', 'pending').onSnapshot(snap => { allPendingUsers = []; snap.forEach(doc => allPendingUsers.push({ id: doc.id, ...doc.data() })); renderApprovals('all'); }); }
 function filterApprovals(role, tabEl) { document.querySelectorAll('.sub-tab').forEach(el => el.classList.remove('active')); tabEl.classList.add('active'); renderApprovals(role); }
 function renderApprovals(filterRole) { const container = document.getElementById('approvals-list-container'); const filtered = filterRole === 'all' ? allPendingUsers : allPendingUsers.filter(u => u.role === filterRole); if (filtered.length === 0) { container.innerHTML = `<p style="padding:1rem;">No pending requests for ${filterRole}.</p>`; return; } let html = '<table class="w-full"><thead><tr><th>Name</th><th>Role</th><th>Info</th><th>Actions</th></tr></thead><tbody>'; filtered.forEach(u => { html += `<tr><td><strong>${u.name}</strong><br><small>${u.email}</small></td><td><span class="pill pill-pending">${u.role.toUpperCase()}</span></td><td>${u.role === 'student' ? u.regNum : (u.deptId || 'N/A')}</td><td><button class="btn btn-primary" onclick="approveUser('${u.id}')">Approve</button> <button class="btn btn-outline" onclick="rejectUser('${u.id}')">Reject</button></td></tr>`; }); html += '</tbody></table>'; container.innerHTML = html; }

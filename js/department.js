@@ -75,6 +75,17 @@ function switchTab(tab, el) {
 }
 
 // --- 1. SESSIONS MGMT ---
+const VALIDATORS = {
+    regNum: (val) => /^\d{11}$/.test(val) || "Registration Number must be 11 digits.",
+    password: (val) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(val) || "Password too weak. (Min 8 chars, Upper, Lower, Num, Special)",
+    session: (val) => {
+        if (!/^\d{4}-\d{2}$/.test(val)) return "Session format: YYYY-YY (e.g. 2023-27)";
+        const [y, yy] = val.split('-').map(Number);
+        const startYY = y % 100;
+        return (yy === startYY + 4) || "Session duration must be 4 years (e.g., 23-27).";
+    }
+};
+
 function loadSessionsList() {
     const arr = currentDeptDoc.sessionsHistory || [];
     const container = document.getElementById('sessions-list-container');
@@ -98,6 +109,11 @@ function loadSessionsList() {
 async function createNewSession() {
     const s = document.getElementById('newSessionName').value.trim();
     if (!s) return alert("Enter session name");
+
+    // Validate Session
+    const vSess = VALIDATORS.session(s);
+    if (vSess !== true) return alert(vSess);
+
     if (currentDeptDoc.sessionsHistory?.includes(s)) return alert("Session exists");
 
     try {
@@ -409,6 +425,10 @@ async function handleDeptAddStudent(e) {
 
     const email = `${reg}@student.fms.local`;
     try {
+        // Validation
+        const vReg = VALIDATORS.regNum(reg); if (vReg !== true) throw new Error(vReg);
+        const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid, name, email, role: 'student', status: 'approved',
@@ -427,6 +447,9 @@ async function handleDeptAddTeacher(e) {
     const email = document.getElementById('tEmail').value;
     const pass = document.getElementById('tPass').value;
     try {
+        // Validation
+        const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid, name, email, role: 'teacher', status: 'approved',
