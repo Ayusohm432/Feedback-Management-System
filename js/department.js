@@ -755,4 +755,98 @@ window.openSubjectModal = openSubjectModal;
 window.closeSubjectModal = closeSubjectModal;
 window.handleAddSubject = handleAddSubject;
 window.toggleSubjectStatus = toggleSubjectStatus;
-window.deleteSubject = deleteSubject;
+
+// --- Export Functionality ---
+
+async function exportDeptReportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Title
+    doc.setFontSize(18);
+    doc.text(`Department Report: ${document.getElementById('pNameDisplay').innerText}`, 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Active Session: ${document.getElementById('current-session-display').innerText.split(': ')[1]}`, 14, 30);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 37);
+
+    let yPos = 50;
+
+    // Stats
+    const studs = document.getElementById('stat-students').innerText;
+    const teachs = document.getElementById('stat-teachers').innerText;
+    const fbs = document.getElementById('stat-feedback').innerText;
+
+    doc.text(`Students: ${studs} | Teachers: ${teachs} | Total Feedback: ${fbs}`, 14, yPos);
+    yPos += 15;
+
+    // Capture Charts via Canvas
+    const charts = [
+        { id: 'deptSubjectChart', title: 'Subject Performance' },
+        { id: 'deptParticipationChart', title: 'Participation Rate' },
+        { id: 'deptTrendChart', title: 'Submission Trend' }
+    ];
+
+    for (let c of charts) {
+        const canvas = document.getElementById(c.id);
+        if (canvas) {
+            try {
+                if (yPos > 250) { doc.addPage(); yPos = 20; }
+                const img = canvas.toDataURL('image/png');
+                doc.addImage(img, 'PNG', 14, yPos, 180, 80);
+                doc.text(c.title, 14, yPos - 5);
+                yPos += 90;
+            } catch (e) {
+                console.warn("Canvas export error:", e);
+            }
+        }
+    }
+
+    doc.save("Dept_Report.pdf");
+}
+
+async function exportTeacherRatingsXLSX() {
+    const btn = event.target ? event.target.closest('button') : null;
+    let originalText = '';
+    if (btn) { originalText = btn.innerHTML; btn.innerHTML = 'Calculating...'; }
+
+    try {
+        // Fetch All Feedback for Dept
+        const snap = await db.collection('feedback').where('department', '==', currentDeptId).get();
+        const teacherStats = {};
+
+        snap.forEach(doc => {
+            const d = doc.data();
+            const tid = d.teacher_id;
+            if (!teacherStats[tid]) teacherStats[tid] = { sum: 0, count: 0 };
+            teacherStats[tid].sum += Number(d.rating);
+            teacherStats[tid].count++;
+        });
+
+        // Map to Teachers list
+        const rows = allMyTeachers.map(t => {
+            const stats = teacherStats[t.id] || { sum: 0, count: 0 };
+            const avg = stats.count ? (stats.sum / stats.count).toFixed(2) : '0.00';
+            return {
+                "Teacher Name": t.name,
+                "Email": t.email,
+                "Average Rating": avg,
+                "Total Reviews": stats.count
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Teacher Ratings");
+        XLSX.writeFile(wb, "Dept_Teacher_Ratings.xlsx");
+
+    } catch (e) {
+        console.error(e);
+        alert("Export failed.");
+    } finally {
+        if (btn) btn.innerHTML = originalText;
+    }
+}
+
+// Global Bind
+window.exportDeptReportPDF = exportDeptReportPDF;
+window.exportTeacherRatingsXLSX = exportTeacherRatingsXLSX;

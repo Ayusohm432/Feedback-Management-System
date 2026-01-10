@@ -370,3 +370,114 @@ async function loadAnalytics() {
         });
     }
 }
+
+// --- Export Functionality ---
+
+async function exportTeacherReportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const name = document.getElementById('t-name-display').innerText;
+
+    // Header
+    doc.setFontSize(18);
+    doc.text(`Performance Report: ${name}`, 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 30);
+
+    let yPos = 45;
+
+    // Check for Certificate Eligibility
+    const avgRating = parseFloat(document.getElementById('stat-avg-rating').innerText);
+    if (avgRating >= 4.5) {
+        // Gold Border/Background
+        doc.setDrawColor(255, 215, 0);
+        doc.setLineWidth(1);
+        doc.rect(10, 40, 190, 40);
+
+        doc.setFontSize(22);
+        doc.setTextColor(218, 165, 32); // Gold
+        doc.text("Certificate of Excellence", 105, 55, { align: 'center' });
+
+        doc.setFontSize(14);
+        doc.setTextColor(0, 0, 0);
+        doc.text("For Outstanding Teaching Performance", 105, 65, { align: 'center' });
+        doc.text(`Average Rating: ${avgRating} / 5.0`, 105, 75, { align: 'center' });
+
+        yPos = 95;
+    } else {
+        doc.text(`Overall Average Rating: ${avgRating} / 5.0`, 14, yPos);
+        yPos += 15;
+    }
+
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+
+    // Capture Charts
+    const charts = [
+        { id: 'subjectPerformanceChart', title: 'Subject Performance' },
+        { id: 'sessionComparisonChart', title: 'Session Analysis' },
+        { id: 'ratingDistributionChart', title: 'Rating Distribution' }
+    ];
+
+    for (let c of charts) {
+        const canvas = document.getElementById(c.id);
+        if (canvas) {
+            try {
+                if (yPos > 240) { doc.addPage(); yPos = 20; }
+                const img = canvas.toDataURL('image/png');
+                doc.addImage(img, 'PNG', 14, yPos, 180, 80); // Adjust size as needed
+                doc.text(c.title, 14, yPos - 5);
+                yPos += 95;
+            } catch (e) {
+                console.warn("Canvas export error:", e);
+            }
+        }
+    }
+
+    doc.save(`Performance_Report_${name.replace(/\s+/g, '_')}.pdf`);
+}
+
+async function exportMyFeedbackXLSX() {
+    const btn = event.target ? event.target.closest('button') : null;
+    let originalText = '';
+    if (btn) { originalText = btn.innerHTML; btn.innerHTML = 'Exporting...'; }
+
+    try {
+        const uid = firebase.auth().currentUser.uid;
+        const snap = await db.collection('feedback').where('teacher_id', '==', uid).get();
+
+        if (snap.empty) { alert("No feedback data to export."); return; }
+
+        const data = [];
+        snap.forEach(doc => {
+            const d = doc.data();
+            data.push({
+                "Subject": d.subject || 'N/A',
+                "Session": d.session || 'N/A',
+                "Rating": d.rating,
+                "Comments": d.comments || '',
+                "Year": d.year || '-',
+                "Semester": d.semester || '-',
+                "Date": d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : '-'
+            });
+        });
+
+        // Sort by Date Desc
+        data.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "My Feedback");
+        XLSX.writeFile(wb, "My_Feedback_History.xlsx");
+
+    } catch (e) {
+        console.error(e);
+        alert("Export failed: " + e.message);
+    } finally {
+        if (btn) btn.innerHTML = originalText;
+    }
+}
+
+// Global Bind
+window.exportTeacherReportPDF = exportTeacherReportPDF;
+window.exportMyFeedbackXLSX = exportMyFeedbackXLSX;

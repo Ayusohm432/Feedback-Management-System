@@ -9,6 +9,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .dashboard-grid {
             display: grid;
@@ -161,6 +165,8 @@
                             class="ri-bar-chart-grouped-line"></i> Analytics</a></li>
                 <li><a class="sidebar-link" onclick="switchTab('feedback', this)"><i class="ri-feedback-line"></i> My
                         Feedback</a></li>
+                <li><a class="sidebar-link" onclick="switchTab('reports', this)"><i class="ri-file-chart-line"></i> My
+                        Reports</a></li>
                 <li><a class="sidebar-link" onclick="switchTab('profile', this)"><i class="ri-user-settings-line"></i>
                         Profile</a></li>
                 <li style="margin-top: auto;"><a class="sidebar-link" onclick="logout()"><i
@@ -299,6 +305,51 @@
                         </div>
                     </div>
                     <div id="teacher-feedback-container" class="feedback-grid">Loading...</div>
+                </section>
+
+                <!-- 5. REPORTS -->
+                <section id="tab-reports" class="tab-section">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                        <div class="card">
+                            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                <div style="background:#fef2f2; padding:0.75rem; border-radius:50%; color:#ef4444;">
+                                    <i class="ri-award-line" style="font-size:1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin:0;">Performance Report</h3>
+                                    <p style="font-size:0.85em; color:#666;">PDF Export</p>
+                                </div>
+                            </div>
+                            <p style="color:#666; font-size:0.9em; margin-bottom:1.5rem;">
+                                Download your detailed performance analysis. High-performing teachers (Avg > 4.5)
+                                receive a specialized Certificate of Excellence.
+                            </p>
+                            <button class="btn btn-outline" style="width:100%; justify-content:center;"
+                                onclick="exportTeacherReportPDF()">
+                                <i class="ri-download-line"></i> Download PDF
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                <div style="background:#f0fdf4; padding:0.75rem; border-radius:50%; color:#16a34a;">
+                                    <i class="ri-file-excel-line" style="font-size:1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin:0;">Feedback History</h3>
+                                    <p style="font-size:0.85em; color:#666;">Excel Export</p>
+                                </div>
+                            </div>
+                            <p style="color:#666; font-size:0.9em; margin-bottom:1.5rem;">
+                                Export all your received feedback, including comments and ratings, into an Excel
+                                spreadsheet for personal record keeping.
+                            </p>
+                            <button class="btn btn-outline" style="width:100%; justify-content:center;"
+                                onclick="exportMyFeedbackXLSX()">
+                                <i class="ri-download-line"></i> Download Excel
+                            </button>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- 4. PROFILE -->

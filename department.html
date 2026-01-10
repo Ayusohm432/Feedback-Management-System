@@ -9,6 +9,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .dashboard-grid {
             display: grid;
@@ -264,6 +268,8 @@
                         Students</a></li>
                 <li><a class="sidebar-link" onclick="switchTab('teachers', this)"><i class="ri-user-3-line"></i>
                         Teachers</a></li>
+                <li><a class="sidebar-link" onclick="switchTab('reports', this)"><i class="ri-file-chart-line"></i>
+                        Reports</a></li>
                 <li><a class="sidebar-link" onclick="switchTab('profile', this)"><i class="ri-user-settings-line"></i>
                         Profile</a></li>
                 <li style="margin-top: auto;"><a class="sidebar-link" onclick="logout()"><i
@@ -530,6 +536,51 @@
                 </section>
 
                 <!-- 8. PROFILE -->
+                <!-- 9. REPORTS -->
+                <section id="tab-reports" class="tab-section">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                        <div class="card">
+                            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                <div style="background:#fef2f2; padding:0.75rem; border-radius:50%; color:#ef4444;">
+                                    <i class="ri-file-pdf-line" style="font-size:1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin:0;">Department Report</h3>
+                                    <p style="font-size:0.85em; color:#666;">PDF Export</p>
+                                </div>
+                            </div>
+                            <p style="color:#666; font-size:0.9em; margin-bottom:1.5rem;">
+                                Detailed PDF summary comprising subject performance charts, participation stats, and
+                                rating distribution for this department.
+                            </p>
+                            <button class="btn btn-outline" style="width:100%; justify-content:center;"
+                                onclick="exportDeptReportPDF()">
+                                <i class="ri-download-line"></i> Download PDF
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                <div style="background:#f0fdf4; padding:0.75rem; border-radius:50%; color:#16a34a;">
+                                    <i class="ri-file-excel-line" style="font-size:1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin:0;">Teacher Ratings List</h3>
+                                    <p style="font-size:0.85em; color:#666;">Excel Export</p>
+                                </div>
+                            </div>
+                            <p style="color:#666; font-size:0.9em; margin-bottom:1.5rem;">
+                                Export a spreadsheet listing all teachers in this department along with their calculated
+                                average ratings and feedback counts.
+                            </p>
+                            <button class="btn btn-outline" style="width:100%; justify-content:center;"
+                                onclick="exportTeacherRatingsXLSX()">
+                                <i class="ri-download-line"></i> Download Excel
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- 8. PROFILE -->
                 <section id="tab-profile" class="tab-section">
                     <div class="card">
