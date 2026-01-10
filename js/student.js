@@ -247,10 +247,12 @@ function checkReviewStatus() {
     // Creating options
     const session = teacher.activeSession || 'General';
     let availableCount = 0;
+    const year = currentUserDoc.year || '1';
+    const sem = currentUserDoc.semester || '1';
 
     validSubjects.forEach(s => {
         // Check duplicate
-        const key = `${uid}_${session}_${s.name}`;
+        const key = `${uid}_${year}_${sem}_${session}_${s.name}`;
         if (!submittedSessions.has(key)) {
             const opt = document.createElement('option');
             opt.value = s.name;
