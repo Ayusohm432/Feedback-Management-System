@@ -6,6 +6,7 @@
 let currentDeptId = null; // e.g., "105"
 let currentDeptDoc = null;
 let allMyTeachers = [];
+let allDeptStudents = []; // Cache for student management logic
 
 // Init
 document.addEventListener('DOMContentLoaded', async () => {
@@ -23,16 +24,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('dept-email-display').innerText = user.email;
                 document.getElementById('dept-avatar').src = `https://ui-avatars.com/api/?name=${dName}&background=10b981&color=fff`;
 
-                document.getElementById('pName').value = dName;
-                document.getElementById('pId').value = currentDeptId;
-
                 // Active Session Logic
                 const actSess = currentDeptDoc.activeSession || 'NOT SET';
                 document.getElementById('current-session-display').innerText = `Active Session: ${actSess}`;
-                document.getElementById('pSessionDisplay').value = actSess;
+                document.getElementById('pSessionDisplay').innerText = actSess;
                 if (document.getElementById('sSession')) document.getElementById('sSession').value = actSess;
 
                 // Load Data
+                // Profile Section
+                document.getElementById('pNameDisplay').innerText = dName;
+                document.getElementById('pEmailDisplay').innerText = user.email;
+                document.getElementById('pIdDisplay').innerText = currentDeptId;
+                document.getElementById('profile-avatar-large').src = `https://ui-avatars.com/api/?name=${dName}&background=10b981&color=fff&size=200`;
                 loadDeptStats();
                 loadDeptTeachers();
                 loadDeptStudents();
@@ -72,6 +75,17 @@ function switchTab(tab, el) {
 }
 
 // --- 1. SESSIONS MGMT ---
+const VALIDATORS = {
+    regNum: (val) => /^\d{11}$/.test(val) || "Registration Number must be 11 digits.",
+    password: (val) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(val) || "Password too weak. (Min 8 chars, Upper, Lower, Num, Special)",
+    session: (val) => {
+        if (!/^\d{4}-\d{2}$/.test(val)) return "Session format: YYYY-YY (e.g. 2023-27)";
+        const [y, yy] = val.split('-').map(Number);
+        const startYY = y % 100;
+        return (yy === startYY + 4) || "Session duration must be 4 years (e.g., 23-27).";
+    }
+};
+
 function loadSessionsList() {
     const arr = currentDeptDoc.sessionsHistory || [];
     const container = document.getElementById('sessions-list-container');
@@ -95,6 +109,11 @@ function loadSessionsList() {
 async function createNewSession() {
     const s = document.getElementById('newSessionName').value.trim();
     if (!s) return alert("Enter session name");
+
+    // Validate Session
+    const vSess = VALIDATORS.session(s);
+    if (vSess !== true) return alert(vSess);
+
     if (currentDeptDoc.sessionsHistory?.includes(s)) return alert("Session exists");
 
     try {
@@ -139,33 +158,40 @@ function loadRecentActivity() {
             return;
         }
 
-        // Convert to array and sort
+        // Snapshot to array
         let users = [];
         snap.forEach(doc => users.push(doc.data()));
+
+        // Sort descending by time
         users.sort((a, b) => {
             const tA = a.createdAt ? a.createdAt.seconds : 0;
             const tB = b.createdAt ? b.createdAt.seconds : 0;
             return tB - tA;
         });
 
-        // Take top 5
+        // Top 5
         users = users.slice(0, 5);
 
         let html = '';
         users.forEach(d => {
             const date = d.createdAt ? new Date(d.createdAt.seconds * 1000).toLocaleDateString() : 'Just now';
-            const icon = d.role === 'student' ? 'ri-user-line' : (d.role === 'teacher' ? 'ri-user-tie-line' : 'ri-user-settings-line');
-            const bg = d.role === 'student' ? '#e0f2fe' : (d.role === 'teacher' ? '#dcfce7' : '#f3f4f6');
-            const color = d.role === 'student' ? '#0284c7' : (d.role === 'teacher' ? '#16a34a' : '#4b5563');
+
+            let icon = 'ri-notification-line';
+            let color = '#666';
+            let bg = '#f1f5f9';
+
+            if (d.role === 'student') { icon = 'ri-user-smile-line'; color = '#2563eb'; bg = '#dbeafe'; }
+            if (d.role === 'teacher') { icon = 'ri-user-star-line'; color = '#9333ea'; bg = '#f3e8ff'; }
 
             html += `
-            <div style="display:flex; align-items:center; gap:1rem; padding:0.75rem 0; border-bottom:1px solid #eee;">
-                <div style="width:32px; height:32px; background:${bg}; color:${color}; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+            <div class="activity-item">
+                <div class="activity-icon" style="background:${bg}; color:${color};">
                     <i class="${icon}"></i>
                 </div>
                 <div>
-                    <div style="font-size:0.9em;"><strong>New ${d.role}</strong> joined: ${d.name}</div>
-                    <small style="color:#999; font-size:0.8em;">${date}</small>
+                    <div style="font-size:0.95rem; font-weight:500;">New ${d.role} Registration</div>
+                    <div style="font-size:0.85em; color:#666;">${d.name} joined.</div>
+                    <small style="color:#999; font-size:0.75em;">${date}</small>
                 </div>
             </div>`;
         });
@@ -182,7 +208,7 @@ function loadDeptTeachers() {
             const container = document.getElementById('dept-teachers-list');
             if (snap.empty) { container.innerHTML = "<p>No teachers.</p>"; return; }
 
-            let html = '<table class="w-full"><thead><tr><th>Name</th><th>Email</th><th>Reviews</th></tr></thead><tbody>';
+            let html = '<table class="w-full"><thead><tr><th>Name</th><th>Email</th><th>Reviews</th><th>Subjects</th></tr></thead><tbody>';
             snap.forEach(doc => {
                 const t = { id: doc.id, ...doc.data() };
                 allMyTeachers.push(t);
@@ -196,6 +222,7 @@ function loadDeptTeachers() {
                         </label>
                         <span style="font-size:0.8em; margin-left:0.5rem; color:${t.isReviewOpen ? '#16a34a' : '#999'}">${t.isReviewOpen ? 'Open' : 'Closed'}</span>
                     </td>
+                    <td><button class="btn btn-sm btn-outline" onclick="openSubjectModal('${t.id}')">Manage</button></td>
                 </tr>`;
             });
             html += '</tbody></table>';
@@ -215,16 +242,53 @@ function loadDeptStudents() {
         .where('role', '==', 'student')
         .where('department', '==', currentDeptId)
         .onSnapshot(snap => {
+            allDeptStudents = []; // Reset
             const container = document.getElementById('dept-students-list');
-            if (snap.empty) { container.innerHTML = "<p>No particular students.</p>"; return; }
-            let html = '<table class="w-full"><thead><tr><th>Reg No</th><th>Name</th><th>Session</th></tr></thead><tbody>';
+            container.innerHTML = 'Loading students...';
+
+            // Store raw objects
+            allDeptStudents = [];
             snap.forEach(doc => {
-                const s = doc.data();
-                html += `<tr><td>${s.regNum}</td><td>${s.name}</td><td>${s.session}</td></tr>`;
+                allDeptStudents.push({ id: doc.id, ...doc.data() });
             });
-            html += '</tbody></table>';
-            container.innerHTML = html;
+
+            // Initial Filter/Render
+            filterDeptStudentList();
         });
+}
+
+function filterDeptStudentList() {
+    const filterYear = document.getElementById('deptStudentYearFilter') ? document.getElementById('deptStudentYearFilter').value : 'all';
+    const filterSem = document.getElementById('deptStudentSemFilter') ? document.getElementById('deptStudentSemFilter').value : 'all';
+    const container = document.getElementById('dept-students-list');
+
+    let filtered = allDeptStudents;
+
+    if (filterYear !== 'all') {
+        filtered = filtered.filter(s => (s.year || '1').toString() === filterYear);
+    }
+    if (filterSem !== 'all') {
+        filtered = filtered.filter(s => (s.semester || '1').toString() === filterSem);
+    }
+
+    renderStudentTable(filtered, container);
+}
+
+function renderStudentTable(students, container) {
+    if (students.length === 0) { container.innerHTML = "<p>No particular students found.</p>"; return; }
+
+    let html = '<table class="w-full"><thead><tr><th><input type="checkbox" onchange="toggleAllStudents(this)"></th><th>Reg No</th><th>Name</th><th>Year/Sem</th><th>Session</th></tr></thead><tbody>';
+    students.forEach(s => {
+        html += `<tr>
+            <td><input type="checkbox" class="student-checkbox" value="${s.id}"></td>
+            <td>${s.regNum}</td>
+            <td>${s.name}</td>
+            <td>Y${s.year || '1'}-S${s.semester || '1'}</td>
+            <td>${s.session}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
 }
 
 async function loadDeptFeedback() {
@@ -241,6 +305,8 @@ async function loadDeptFeedback() {
 
         const fTeacher = document.getElementById('fbFilterTeacher').value;
         const fRating = document.getElementById('fbFilterRating').value;
+        const fYear = document.getElementById('fbFilterYear') ? document.getElementById('fbFilterYear').value : 'all';
+        const fSem = document.getElementById('fbFilterSemester') ? document.getElementById('fbFilterSemester').value : 'all';
 
         let html = '';
         snap.forEach(doc => {
@@ -249,30 +315,48 @@ async function loadDeptFeedback() {
             if (fTeacher !== 'all' && d.teacher_id !== fTeacher) show = false;
             if (fRating === 'low' && d.rating >= 3) show = false;
             if (fRating === 'high' && d.rating <= 3) show = false;
+            if (fYear !== 'all' && (d.year || '1') !== fYear) show = false;
+            if (fSem !== 'all' && (d.semester || '1') !== fSem) show = false;
 
             if (show) {
+                // Match Admin Dashboard Card Style
                 const tName = allMyTeachers.find(t => t.id === d.teacher_id)?.name || 'Unknown Faculty';
                 const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
-                const color = d.rating < 3 ? '#ef4444' : (d.rating >= 4 ? '#10b981' : '#f59e0b');
-                const stars = '★'.repeat(d.rating) + '☆'.repeat(5 - d.rating);
+
+                let colorClass = '#f59e0b';
+                let statusClass = 'neutral';
+                if (d.rating <= 2) { colorClass = '#ef4444'; statusClass = 'negative'; }
+                if (d.rating >= 4) { colorClass = '#10b981'; statusClass = 'positive'; }
 
                 html += `
-                <div class="feedback-card">
-                    <div style="padding:1rem; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
-                         <div>
-                            <span style="font-weight:600; font-size:0.95em;">${tName}</span>
-                         </div>
-                         <div style="color:${color}; font-weight:bold;">${stars}</div>
+                    <div class="feedback-card ${statusClass}">
+                        <div class="feedback-header">
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <img src="https://ui-avatars.com/api/?name=${tName}&background=random&size=32" style="width:32px; height:32px; border-radius:50%;">
+                                <div style="line-height:1.2;">
+                                    <div style="font-weight:600; font-size:0.95rem;">${tName}</div>
+                                    <div style="font-size:0.75rem; color:#666;">${d.subject || 'General'}</div>
+                                </div>
+                            </div>
+                            <span class="rating-badge" style="background:${colorClass}20; color:${colorClass}">${d.rating} ★</span>
+                        </div>
+                        <div class="feedback-body">
+                             <!-- Admin uses H4 for subject, but we put it in header subtext for better Dept context where Dept is constant. 
+                                  If we want exact match, we can put it here too, but let's keep Body for comments. 
+                                  Actually, Admin puts Subject in Body H4. Let's do that for strict consistency if user insists?
+                                  User said "Make it similar". 
+                                  My previous plan: Header=Name+Subject. Body=Comment. 
+                                  Admin Plan: Header=Name+Dept. Body=Subject+Comment.
+                                  Since Dept is constant here, using Subject in Header is smarter use of space. 
+                                  I will put Subject in Header subtext, and clear Body for just comment. -->
+                            <p style="color:#475569; font-size:0.95em; line-height:1.5;">"${d.comments || ''}"</p>
+                        </div>
+                        <div class="feedback-footer">
+                            <span><i class="ri-calendar-line"></i> ${date}</span>
+                            <span>${d.session || '-'} | Y${d.year || '-'}</span>
+                        </div>
                     </div>
-                    <div style="padding:1rem;">
-                        <span style="background:#f3f4f6; color:#555; font-size:0.75em; padding:0.2rem 0.5rem; border-radius:4px;">${d.subject || 'General'}</span>
-                        <p style="margin-top:0.75rem; color:#444; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
-                    </div>
-                    <div style="background:#fafafa; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; display:flex; justify-content:space-between; font-size:0.8em; color:#888;">
-                        <span>Session: ${d.session || 'N/A'}</span>
-                        <span>${date}</span>
-                    </div>
-                </div>`;
+                `;
             }
         });
         container.innerHTML = html || '<p style="grid-column:1/-1; text-align:center;">No feedback matches filters.</p>';
@@ -297,23 +381,33 @@ function loadDeptApprovals() {
         snap.forEach(doc => {
             const u = doc.data();
             const actionBtns = `
-                 <button class="btn btn-primary" style="padding:0.25rem 0.5rem; font-size:0.8em;" onclick="approveUser('${doc.id}')">Approve</button>
-                 <button class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.8em;" onclick="rejectUser('${doc.id}')">Reject</button>`;
+                 <button class="btn btn-primary" style="padding:0.25rem 0.75rem; font-size:0.8em; border-radius:20px;" onclick="approveUser('${doc.id}')">Approve</button>
+                 <button class="btn btn-outline" style="padding:0.25rem 0.75rem; font-size:0.8em; border-radius:20px; color:#ef4444; border-color:#ef4444;" onclick="rejectUser('${doc.id}')">Reject</button>`;
+
+            const pill = `<span style="background:#fef3c7; color:#d97706; padding:0.2rem 0.6rem; border-radius:1rem; font-size:0.75em; font-weight:600;">Pending</span>`;
 
             if (u.role === 'student') {
                 sCount++;
-                sHTML += `<tr><td>${u.name}</td><td>${u.regNum || '-'}</td><td>${actionBtns}</td></tr>`;
+                sHTML += `<tr>
+                    <td><div>${u.name}</div><small style="color:#666;">${pill}</small></td>
+                    <td>${u.regNum || '-'}</td>
+                    <td><div style="display:flex; gap:0.5rem;">${actionBtns}</div></td>
+                </tr>`;
             } else if (u.role === 'teacher') {
                 tCount++;
-                tHTML += `<tr><td>${u.name}</td><td>${u.email}</td><td>${actionBtns}</td></tr>`;
+                tHTML += `<tr>
+                    <td><div>${u.name}</div><small style="color:#666;">${pill}</small></td>
+                    <td>${u.email}</td>
+                    <td><div style="display:flex; gap:0.5rem;">${actionBtns}</div></td>
+                </tr>`;
             }
         });
 
         sHTML += '</tbody></table>';
         tHTML += '</tbody></table>';
 
-        sContainer.innerHTML = sCount ? sHTML : '<p style="color:#666; padding:1rem;">No pending students.</p>';
-        tContainer.innerHTML = tCount ? tHTML : '<p style="color:#666; padding:1rem;">No pending teachers.</p>';
+        sContainer.innerHTML = sCount ? sHTML : '<p style="color:#666; padding:1.5rem; text-align:center;">No pending students.</p>';
+        tContainer.innerHTML = tCount ? tHTML : '<p style="color:#666; padding:1.5rem; text-align:center;">No pending teachers.</p>';
     });
 }
 
@@ -323,16 +417,23 @@ async function handleDeptAddStudent(e) {
     const reg = document.getElementById('sReg').value.trim();
     const name = document.getElementById('sName').value.trim();
     const pass = document.getElementById('sPass').value;
+    const year = document.getElementById('sYear').value;
+    const semester = document.getElementById('sSemester').value;
     const session = currentDeptDoc.activeSession;
 
     if (!session) return alert("Please Create & Set an Active Session first in Sessions tab.");
 
     const email = `${reg}@student.fms.local`;
     try {
+        // Validation
+        const vReg = VALIDATORS.regNum(reg); if (vReg !== true) throw new Error(vReg);
+        const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid, name, email, role: 'student', status: 'approved',
             regNum: reg, department: currentDeptId, session: session,
+            year: year || '1', semester: semester || '1',
             createdAt: new Date()
         });
         alert("Student Created!"); e.target.reset();
@@ -346,6 +447,9 @@ async function handleDeptAddTeacher(e) {
     const email = document.getElementById('tEmail').value;
     const pass = document.getElementById('tPass').value;
     try {
+        // Validation
+        const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid, name, email, role: 'teacher', status: 'approved',
@@ -373,6 +477,7 @@ async function handleDeptBulkStudent() {
                         await db.collection('users').doc(uid).set({
                             uid, name: r.name, email, role: 'student', status: 'approved',
                             regNum: r.student_id, department: currentDeptId, session: session,
+                            year: r.year || '1', semester: r.semester || '1',
                             createdAt: new Date()
                         });
                         n++;
@@ -395,23 +500,456 @@ window.approveUser = async (uid) => { await db.collection('users').doc(uid).upda
 window.rejectUser = async (uid) => { if (confirm("Reject?")) await db.collection('users').doc(uid).delete(); }
 window.toggleTeacherReview = async (tid, val) => { await db.collection('users').doc(tid).update({ isReviewOpen: val }); }
 
-function loadDeptAnalytics() {
-    const ctx = document.getElementById('deptPerformanceChart').getContext('2d');
-    db.collection('feedback').where('department', '==', currentDeptId).get().then(snap => {
-        const map = {};
-        snap.forEach(d => {
-            const data = d.data();
-            if (!map[data.teacher_id]) map[data.teacher_id] = [];
-            map[data.teacher_id].push(data.rating);
-        });
+// --- 3. ANALYTICS (Redesigned) ---
+let dSubChart = null, dPartChart = null, dDistChart = null, dTrendChart = null;
 
-        const labels = [], data = [];
-        allMyTeachers.forEach(t => {
-            labels.push(t.name);
-            const r = map[t.id] || [];
-            data.push(r.length ? (r.reduce((a, b) => a + b, 0) / r.length) : 0);
-        });
+async function loadDeptAnalytics() {
+    const feedbackSnap = await db.collection('feedback').where('department', '==', currentDeptId).get();
 
-        new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Avg Rating', data, backgroundColor: '#3b82f6' }] }, options: { scales: { y: { max: 5 } } } });
+    // Aggregation Vars
+    const subRatings = {};
+    const ratingDist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const dateTrend = {};
+
+    feedbackSnap.forEach(doc => {
+        const d = doc.data();
+
+        // 1. Avg by Subject
+        let sub = d.subject || 'General';
+        if (!subRatings[sub]) subRatings[sub] = [];
+        subRatings[sub].push(Number(d.rating));
+
+        // 2. Distribution
+        let r = Math.round(Number(d.rating));
+        if (r < 1) r = 1; if (r > 5) r = 5;
+        ratingDist[r]++;
+
+        // 3. Trend
+        if (d.submitted_at) {
+            const dateKey = new Date(d.submitted_at.seconds * 1000).toLocaleDateString();
+            dateTrend[dateKey] = (dateTrend[dateKey] || 0) + 1;
+        }
+    });
+
+    // Chart 1: Subject Performance
+    const labels = Object.keys(subRatings);
+    const data = labels.map(s => {
+        const arr = subRatings[s];
+        return (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1);
+    });
+
+    if (dSubChart) dSubChart.destroy();
+    dSubChart = new Chart(document.getElementById('deptSubjectChart').getContext('2d'), {
+        type: 'bar',
+        data: { labels: labels.length ? labels : ['No Data'], datasets: [{ label: 'Avg Rating', data: data.length ? data : [0], backgroundColor: 'rgba(16, 185, 129, 0.5)', borderColor: '#10b981', borderWidth: 1 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 5 } } }
+    });
+
+    // Chart 2: Participation (Dummy vs Real)
+    if (dPartChart) dPartChart.destroy();
+    dPartChart = new Chart(document.getElementById('deptParticipationChart').getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: ['Submitted', 'Pending'], datasets: [{ data: [feedbackSnap.size, Math.max(0, 100 - feedbackSnap.size)], backgroundColor: ['#3b82f6', '#e5e7eb'] }] },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Chart 3: Distribution
+    const distData = [ratingDist[1], ratingDist[2], ratingDist[3], ratingDist[4], ratingDist[5]];
+    if (dDistChart) dDistChart.destroy();
+    dDistChart = new Chart(document.getElementById('deptRatingDistChart').getContext('2d'), {
+        type: 'polarArea',
+        data: {
+            labels: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'],
+            datasets: [{ data: distData, backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // Chart 4: Trend
+    const sortedDates = Object.keys(dateTrend).sort((a, b) => new Date(a) - new Date(b)).slice(-7);
+    const trendData = sortedDates.map(d => dateTrend[d]);
+    if (dTrendChart) dTrendChart.destroy();
+    dTrendChart = new Chart(document.getElementById('deptTrendChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: sortedDates,
+            datasets: [{ label: 'Submissions', data: trendData, borderColor: '#8b5cf6', tension: 0.3, fill: true, backgroundColor: 'rgba(139, 92, 246, 0.1)' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { set: 1 } } } }
     });
 }
+// --- Manage Subjects Logic ---
+let currentManageTeacherId = null;
+
+// Safe lookup
+async function openSubjectModal(teacherId) {
+    currentManageTeacherId = teacherId;
+    document.getElementById('subjectModal').classList.add('active');
+
+    let teacherName = "Teacher";
+    if (typeof allMyTeachers !== 'undefined') {
+        const t = allMyTeachers.find(u => u.id === teacherId);
+        if (t) teacherName = t.name;
+    }
+
+    document.getElementById('subjectModalSubtitle').innerText = `Assign subjects to ${teacherName}`;
+    loadAssignedSubjects(teacherId);
+}
+
+function closeSubjectModal() {
+    document.getElementById('subjectModal').classList.remove('active');
+    currentManageTeacherId = null;
+}
+
+async function loadAssignedSubjects(teacherId) {
+    const list = document.getElementById('assigned-subjects-list');
+    list.innerHTML = 'Loading...';
+    try {
+        const doc = await db.collection('users').doc(teacherId).get();
+        if (doc.exists) {
+            const subjects = doc.data().assignedSubjects || [];
+            if (subjects.length === 0) {
+                list.innerHTML = '<p style="padding:1rem; color:#999; text-align:center;">No subjects assigned.</p>';
+                return;
+            }
+            let html = '<table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#f0f0f0; text-align:left;"><th style="padding:0.5rem;">Subject</th><th style="padding:0.5rem;">Year/Sem</th><th style="padding:0.5rem;">Status</th><th style="padding:0.5rem;">Action</th></tr></thead><tbody>';
+            subjects.forEach((s, index) => {
+                html += `
+                    <tr style="border-bottom:1px solid #eee;">
+                        <td style="padding:0.5rem;">${s.name}</td>
+                        <td style="padding:0.5rem;">Y${s.year}-S${s.semester}</td>
+                        <td style="padding:0.5rem;">
+                            <label class="switch" style="transform:scale(0.8);">
+                                <input type="checkbox" ${s.isOpen ? 'checked' : ''} onchange="toggleSubjectStatus('${teacherId}', ${index}, this.checked)">
+                                <span class="slider round"></span>
+                            </label>
+                        </td>
+                        <td style="padding:0.5rem;">
+                            <button onclick="deleteSubject('${teacherId}', ${index})" style="color:red; background:none; border:none; cursor:pointer;"><i class="ri-delete-bin-line"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+            html += '</tbody></table>';
+            list.innerHTML = html;
+        }
+    } catch (err) { console.error(err); list.innerHTML = 'Error loading.'; }
+}
+
+async function handleAddSubject(e) {
+    e.preventDefault();
+    if (!currentManageTeacherId) return;
+    const name = document.getElementById('assignSubName').value;
+    const year = document.getElementById('assignSubYear').value;
+    const sem = document.getElementById('assignSubSem').value;
+
+    try {
+        const docRef = db.collection('users').doc(currentManageTeacherId);
+        const doc = await docRef.get();
+        let subjects = doc.data().assignedSubjects || [];
+
+        subjects.push({
+            name: name,
+            year: year,
+            semester: sem,
+            isOpen: true
+        });
+
+        await docRef.update({ assignedSubjects: subjects });
+        document.getElementById('addSubjectForm').reset();
+        loadAssignedSubjects(currentManageTeacherId);
+    } catch (err) { alert("Error adding subject: " + err.message); }
+}
+
+async function toggleSubjectStatus(teacherId, index, status) {
+    try {
+        const docRef = db.collection('users').doc(teacherId);
+        const doc = await docRef.get();
+        let subjects = doc.data().assignedSubjects || [];
+        if (subjects[index]) {
+            subjects[index].isOpen = status;
+            await docRef.update({ assignedSubjects: subjects });
+        }
+    } catch (err) { console.error(err); }
+}
+
+async function deleteSubject(teacherId, index) {
+    if (!confirm("Remove this subject?")) return;
+    try {
+        const docRef = db.collection('users').doc(teacherId);
+        const doc = await docRef.get();
+        let subjects = doc.data().assignedSubjects || [];
+        subjects.splice(index, 1);
+        await docRef.update({ assignedSubjects: subjects });
+        loadAssignedSubjects(teacherId);
+    } catch (err) { alert("Error deleting: " + err.message); }
+}
+
+
+// --- Student Promotion/Demotion Logic (Replicated from Admin) ---
+
+window.toggleAllStudents = (source) => {
+    document.querySelectorAll('.student-checkbox').forEach(cb => cb.checked = source.checked);
+};
+
+window.promoteSelectedStudents = async () => {
+    const selected = Array.from(document.querySelectorAll('.student-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) return alert("No students selected.");
+    if (!confirm(`Are you sure you want to PROMOTE ${selected.length} students?`)) return;
+
+    await processBatchUpdate(selected, 1);
+};
+
+window.demoteSelectedStudents = async () => {
+    const selected = Array.from(document.querySelectorAll('.student-checkbox:checked')).map(cb => cb.value);
+    if (selected.length === 0) return alert("No students selected.");
+    if (!confirm(`Are you sure you want to DEMOTE ${selected.length} students?`)) return;
+
+    await processBatchUpdate(selected, -1);
+};
+
+window.promoteAllStudents = async () => {
+    // Uses currently filtered list (we need to filter again or rely on what's visible, but filtering data is safer)
+    // Actually, let's grab the already filtered list if possible, or just re-filter.
+    // Easier: get unchecked checkboxes
+
+    const visibleIds = Array.from(document.querySelectorAll('.student-checkbox')).map(cb => cb.value);
+
+    if (visibleIds.length === 0) return alert("No students listing.");
+    if (!confirm(`Are you sure you want to PROMOTE ALL ${visibleIds.length} listed students?`)) return;
+
+    await processBatchUpdate(visibleIds, 1);
+};
+
+async function processBatchUpdate(ids, direction) {
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Note: In a real app, use a BatchWrite or Cloud Function.
+    // Here we loop clientside.
+    for (const uid of ids) {
+        try {
+            const student = allDeptStudents.find(s => s.id === uid);
+            if (!student) continue;
+
+            const currentYear = parseInt(student.year) || 1;
+            const currentSem = parseInt(student.semester) || 1;
+
+            const { newYear, newSem } = calculateNewLevel(currentYear, currentSem, direction);
+
+            if (newYear !== currentYear || newSem !== currentSem) {
+                await db.collection('users').doc(uid).update({
+                    year: newYear.toString(),
+                    semester: newSem.toString()
+                });
+                successCount++;
+            }
+        } catch (e) {
+            console.error(e);
+            errorCount++;
+        }
+    }
+
+    alert(`Operation Complete.\nUpdated: ${successCount}\nFailed: ${errorCount}`);
+}
+
+function calculateNewLevel(year, sem, direction) {
+    let newSem = sem + direction;
+    let newYear = year;
+
+    if (direction > 0) { // Promoting
+        newYear = Math.ceil(newSem / 2);
+    } else { // Demoting
+        if (newSem < 1) {
+            newSem = 1;
+            newYear = 1;
+        } else {
+            newYear = Math.ceil(newSem / 2);
+        }
+    }
+
+    if (newYear > 4) newYear = 4;
+
+    return { newYear, newSem };
+}
+
+// Bind to window
+window.openSubjectModal = openSubjectModal;
+window.closeSubjectModal = closeSubjectModal;
+window.handleAddSubject = handleAddSubject;
+window.toggleSubjectStatus = toggleSubjectStatus;
+
+// --- Export Functionality ---
+
+async function exportDeptReportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Filter Context
+    const fYear = document.getElementById('exportFilterYear').value;
+    const fSem = document.getElementById('exportFilterSemester').value;
+    let filterText = (fYear === 'all' && fSem === 'all') ? "All Sessions" : `Filtered: Year ${fYear !== 'all' ? fYear : 'All'} / Sem ${fSem !== 'all' ? fSem : 'All'}`;
+
+    // Title
+    doc.setFontSize(18);
+    doc.text(`Department Report: ${document.getElementById('pNameDisplay').innerText}`, 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Active Session: ${document.getElementById('current-session-display').innerText.split(': ')[1]}`, 14, 28);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 34);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(filterText, 14, 40);
+    doc.setTextColor(0);
+
+    let yPos = 50;
+
+    // Filters require fetching fresh data to calculate accurate stats for report
+    // If filters are 'all', we could use the stats on screen, but consistency is better.
+    doc.text("Processing data...", 14, yPos);
+
+    try {
+        let query = db.collection('feedback').where('department', '==', currentDeptId);
+        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fSem !== 'all') query = query.where('semester', '==', fSem);
+
+        const snap = await query.get();
+        let totalFb = snap.size;
+        let sumRating = 0;
+
+        const teacherStats = {}; // {tid: {sum, count, name}}
+
+        snap.forEach(d => {
+            const data = d.data();
+            sumRating += Number(data.rating);
+
+            if (!teacherStats[data.teacher_id]) teacherStats[data.teacher_id] = { sum: 0, count: 0 };
+            teacherStats[data.teacher_id].sum += Number(data.rating);
+            teacherStats[data.teacher_id].count++;
+        });
+
+        // Cover Loading
+        doc.setFillColor(255, 255, 255);
+        doc.rect(10, 45, 100, 10, 'F');
+
+        const studs = document.getElementById('stat-students').innerText;
+        const teachs = document.getElementById('stat-teachers').innerText;
+        doc.setFontSize(11);
+        doc.text(`Registered Students: ${studs} | Registered Teachers: ${teachs}`, 14, yPos);
+        doc.text(`Total ${filterText} Feedback: ${totalFb}`, 14, yPos + 7);
+        yPos += 15;
+
+        // Teacher Performance Table
+        const tRows = await Promise.all(Object.keys(teacherStats).map(async tid => {
+            // resolve name
+            let name = "Unknown";
+            const t = allMyTeachers.find(u => u.id === tid);
+            if (t) name = t.name;
+            else {
+                // fallback fetch if not in cache? unlikely if dept user mgmt works
+                name = tid.substr(0, 8) + '...';
+            }
+            const avg = (teacherStats[tid].sum / teacherStats[tid].count).toFixed(2);
+            return [name, avg, teacherStats[tid].count];
+        }));
+
+        if (tRows.length > 0) {
+            doc.text("Teacher Performance Summary", 14, yPos);
+            doc.autoTable({
+                startY: yPos + 5,
+                head: [['Teacher Name', 'Avg Rating', 'Feedback Count']],
+                body: tRows,
+            });
+            yPos = doc.lastAutoTable.finalY + 15;
+        } else {
+            doc.text("No feedback data for selected filters.", 14, yPos);
+            yPos += 15;
+        }
+
+        // Add Charts if space permits. 
+        // Note: The on-screen charts are "All data". If we want filtered charts, we'd need to re-render them hidden or warn user.
+        // We will skip screenshots of dashboard charts if filters are on, to avoid misleading data.
+        if (fYear === 'all' && fSem === 'all') {
+            const charts = [
+                { id: 'deptSubjectChart', title: 'Subject Performance (Overall)' },
+                { id: 'deptParticipationChart', title: 'Participation Rate (Overall)' }
+            ];
+            for (let c of charts) {
+                const canvas = document.getElementById(c.id);
+                if (canvas) {
+                    if (yPos > 230) { doc.addPage(); yPos = 20; }
+                    try {
+                        const img = canvas.toDataURL('image/png');
+                        doc.addImage(img, 'PNG', 14, yPos, 180, 80);
+                        doc.text(c.title, 14, yPos - 5);
+                        yPos += 95;
+                    } catch (e) { }
+                }
+            }
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text("(Charts omitted for filtered reports)", 14, yPos);
+        }
+
+        doc.save(`Dept_Report_Y${fYear}_S${fSem}.pdf`);
+
+    } catch (e) {
+        console.error(e);
+        doc.text("Error generating report.", 14, yPos + 10);
+        doc.save("Report_Error.pdf");
+    }
+}
+
+async function exportTeacherRatingsXLSX() {
+    const btn = event.target ? event.target.closest('button') : null;
+    if (btn) btn.innerText = "Exporting...";
+
+    try {
+        const fYear = document.getElementById('exportFilterYear').value;
+        const fSem = document.getElementById('exportFilterSemester').value;
+        const note = (fYear === 'all' && fSem === 'all') ? "" : `Filtered Year:${fYear} Sem:${fSem}`;
+
+        // Fetch
+        let query = db.collection('feedback').where('department', '==', currentDeptId);
+        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fSem !== 'all') query = query.where('semester', '==', fSem);
+
+        const snap = await query.get();
+        if (snap.empty) { alert("No data."); return; }
+
+        const teacherStats = {};
+        snap.forEach(d => {
+            const data = d.data();
+            if (!teacherStats[data.teacher_id]) teacherStats[data.teacher_id] = { sum: 0, count: 0 };
+            teacherStats[data.teacher_id].sum += Number(data.rating);
+            teacherStats[data.teacher_id].count++;
+        });
+
+        const data = Object.keys(teacherStats).map(tid => {
+            const t = allMyTeachers.find(u => u.id === tid);
+            return {
+                "Teacher Name": t ? t.name : tid,
+                "Email": t ? t.email : '-',
+                "Average Rating": (teacherStats[tid].sum / teacherStats[tid].count).toFixed(2),
+                "Feedback Count": teacherStats[tid].count,
+                "Filter Context": note
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Teacher Ratings");
+        XLSX.writeFile(wb, `Teacher_Ratings_${fYear}_${fSem}.xlsx`);
+
+    } catch (e) {
+        console.error(e);
+        alert("Export Error");
+    } finally {
+        if (btn) btn.innerHTML = '<i class="ri-download-line"></i> Download Excel';
+    }
+}
+
+// Global Bind
+window.exportDeptReportPDF = exportDeptReportPDF;
+window.exportTeacherRatingsXLSX = exportTeacherRatingsXLSX;

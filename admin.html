@@ -9,6 +9,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .dashboard-grid {
             display: grid;
@@ -301,10 +305,12 @@
                         Approvals</a></li>
                 <li><a onclick="switchTab('students', this)" class="sidebar-link"><i class="ri-group-line"></i>
                         Students</a></li>
-                <li><a onclick="switchTab('teachers', this)" class="sidebar-link"><i class="ri-user-tie-line"></i>
+                <li><a onclick="switchTab('teachers', this)" class="sidebar-link"><i class="ri-user-3-line"></i>
                         Teachers</a></li>
                 <li><a onclick="switchTab('departments', this)" class="sidebar-link"><i class="ri-building-line"></i>
                         Departments</a></li>
+                <li><a onclick="switchTab('exports', this)" class="sidebar-link"><i class="ri-file-download-line"></i>
+                        Exports</a></li>
                 <li><a onclick="switchTab('profile', this)" class="sidebar-link"><i class="ri-user-settings-line"></i>
                         Profile</a></li>
                 <li style="margin-top: auto;"><a onclick="logout()" class="sidebar-link"><i
@@ -375,15 +381,26 @@
                         </div>
                         <div class="card">
                             <h3><i class="ri-flashlight-line"></i> Quick Actions</h3>
-                            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
                                 <button class="btn btn-outline"
-                                    onclick="switchTab('students', document.querySelectorAll('.sidebar-link')[4])">Add
-                                    Student</button>
+                                    onclick="switchTab('students', document.querySelectorAll('.sidebar-link')[4])">
+                                    <i class="ri-user-add-line"></i> Add Student
+                                </button>
                                 <button class="btn btn-outline"
-                                    onclick="switchTab('teachers', document.querySelectorAll('.sidebar-link')[5])">Add
-                                    Teacher</button>
-                                <button class="btn btn-outline" onclick="downloadSample()">Download CSV
-                                    Template</button>
+                                    onclick="switchTab('teachers', document.querySelectorAll('.sidebar-link')[5])">
+                                    <i class="ri-user-follow-line"></i> Add Teacher
+                                </button>
+                                <button class="btn btn-outline"
+                                    onclick="switchTab('approvals', document.querySelectorAll('.sidebar-link')[3])">
+                                    <i class="ri-checkbox-circle-line"></i> Reviews
+                                </button>
+                                <button class="btn btn-outline"
+                                    onclick="switchTab('analytics', document.querySelectorAll('.sidebar-link')[1])">
+                                    <i class="ri-bar-chart-2-line"></i> Analytics
+                                </button>
+                                <button class="btn btn-outline" style="grid-column: 1 / -1;" onclick="downloadSample()">
+                                    <i class="ri-file-download-line"></i> Download CSV Template
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -391,14 +408,30 @@
 
                 <!-- 2. ANALYTICS -->
                 <section id="tab-analytics" class="tab-section">
-                    <div class="stats-row">
-                        <div class="card" style="flex:2;">
-                            <h3>Department Performance</h3>
-                            <div class="chart-container"><canvas id="deptChart"></canvas></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                        <div class="card">
+                            <h3>Department Performance (Avg Rating)</h3>
+                            <div class="chart-container">
+                                <canvas id="deptChart"></canvas>
+                            </div>
                         </div>
-                        <div class="card" style="flex:1;">
-                            <h3>Participation Rate</h3>
-                            <div class="chart-container"><canvas id="participationChart"></canvas></div>
+                        <div class="card">
+                            <h3>Feedback Participation</h3>
+                            <div class="chart-container">
+                                <canvas id="participationChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Rating Distribution</h3>
+                            <div class="chart-container">
+                                <canvas id="ratingDistChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Feedback Trend (Last 7 Days)</h3>
+                            <div class="chart-container">
+                                <canvas id="feedbackTrendChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -414,6 +447,20 @@
                             <select id="fbFilterTeacher" onchange="loadFeedbackExplorer()"
                                 style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <option value="all">All Teachers</option>
+                            </select>
+                            <select id="fbFilterYear" onchange="loadFeedbackExplorer()"
+                                style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <option value="all">All Years</option>
+                                <option value="1">1st Year</option>
+                                <option value="2">2nd Year</option>
+                                <option value="3">3rd Year</option>
+                                <option value="4">4th Year</option>
+                            </select>
+                            <select id="fbFilterSemester" onchange="loadFeedbackExplorer()"
+                                style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <option value="all">All Semesters</option>
+                                <option value="1">Sem 1</option>
+                                <option value="2">Sem 2</option>
                             </select>
                             <select id="fbFilterRating" onchange="loadFeedbackExplorer()"
                                 style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
@@ -462,6 +509,22 @@
                                     <option value="105">CSE (105)</option>
                                     <option value="106">ECE (106)</option>
                                 </select>
+                                <div style="display:flex; gap:0.5rem;">
+                                    <select id="addYear" required
+                                        style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                        <option value="" disabled selected>Year</option>
+                                        <option value="1">1st Year</option>
+                                        <option value="2">2nd Year</option>
+                                        <option value="3">3rd Year</option>
+                                        <option value="4">4th Year</option>
+                                    </select>
+                                    <select id="addSemester" required
+                                        style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                        <option value="" disabled selected>Sem</option>
+                                        <option value="1">Sem 1</option>
+                                        <option value="2">Sem 2</option>
+                                    </select>
+                                </div>
                                 <input type="text" id="addSession" placeholder="Session (e.g. 2023-27)" required
                                     style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <input type="password" id="addPassword" placeholder="Password" required
@@ -472,18 +535,46 @@
                         <div class="card" style="flex: 1;">
                             <h3>Bulk Upload</h3>
                             <p style="font-size:0.9em;color:#666;">Cols:
-                                <code>student_id, name, department, session, password</code></p>
+                                <code>student_id, name, department, session, password</code>
+                            </p>
                             <input type="file" id="csvFile" accept=".csv" style="margin:1rem 0;">
                             <button class="btn btn-primary" onclick="handleBulkUpload()">Upload</button>
                         </div>
                     </div>
                     <div class="card">
-                        <div style="display:flex; justify-content:space-between;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                             <h3>Registered Students</h3>
-                            <select id="studentDeptFilter" onchange="filterStudentList()"
-                                style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
-                                <option value="all">All Departments</option>
-                            </select>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <div id="student-bulk-actions" style="display:flex; gap:0.5rem;">
+                                    <button class="btn btn-sm btn-outline" onclick="promoteSelectedStudents()"
+                                        title="Promote Selected"><i class="ri-arrow-up-double-line"></i> Promote
+                                        Selected</button>
+                                    <button class="btn btn-sm btn-outline" onclick="demoteSelectedStudents()"
+                                        title="Demote Selected"><i class="ri-arrow-down-double-line"></i> Demote
+                                        Selected</button>
+                                    <button class="btn btn-sm btn-primary" onclick="promoteAllStudents()"
+                                        title="Promote All in List">Promote All Listed</button>
+                                </div>
+                                <select id="studentYearFilter" onchange="filterStudentList()"
+                                    style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                    <option value="all">All Years</option>
+                                    <option value="1">1st Year</option>
+                                    <option value="2">2nd Year</option>
+                                    <option value="3">3rd Year</option>
+                                    <option value="4">4th Year</option>
+                                </select>
+                                <select id="studentSemFilter" onchange="filterStudentList()"
+                                    style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                    <option value="all">All Semesters</option>
+                                    <option value="1">Sem 1</option>
+                                    <option value="2">Sem 2</option>
+                                </select>
+                                <select id="studentDeptFilter" onchange="filterStudentList()"
+                                    style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                    <option value="all">All Departments</option>
+                                </select>
+                            </div>
                         </div>
                         <div id="students-table-container">Loading...</div>
                     </div>
@@ -557,25 +648,151 @@
                     </div>
                 </section>
 
+                <!-- 9. EXPORTS -->
+                <section id="tab-exports" class="tab-section">
+                    <div class="card" style="margin-bottom: 2rem;">
+                        <h3><i class="ri-filter-3-line"></i> Report Filters</h3>
+                        <div style="display:flex; gap:1rem; margin-top:1rem; flex-wrap:wrap; align-items:center;">
+                            <label style="font-weight:500; font-size:0.9em; color:#666;">Filter Data By:</label>
+                            <select id="exportFilterYear"
+                                style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <option value="all">All Years</option>
+                                <option value="1">1st Year</option>
+                                <option value="2">2nd Year</option>
+                                <option value="3">3rd Year</option>
+                                <option value="4">4th Year</option>
+                            </select>
+                            <select id="exportFilterSemester"
+                                style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <option value="all">All Semesters</option>
+                                <option value="1">Sem 1</option>
+                                <option value="2">Sem 2</option>
+                            </select>
+                            <span style="font-size:0.85em; color:#999; margin-left:auto;">*Filters apply to all exports
+                                below</span>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                        <div class="card">
+                            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                <div style="background:#fef2f2; padding:0.75rem; border-radius:50%; color:#ef4444;">
+                                    <i class="ri-file-pdf-line" style="font-size:1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin:0;">System Summary</h3>
+                                    <p style="font-size:0.85em; color:#666;">PDF Report</p>
+                                </div>
+                            </div>
+                            <p style="color:#666; font-size:0.9em; margin-bottom:1.5rem;">
+                                Generate a comprehensive PDF report including key statistics, department performance
+                                charts, and participation metrics.
+                            </p>
+                            <button class="btn btn-outline" style="width:100%; justify-content:center;"
+                                onclick="exportSystemSummaryPDF()">
+                                <i class="ri-download-line"></i> Download PDF
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                <div style="background:#f0fdf4; padding:0.75rem; border-radius:50%; color:#16a34a;">
+                                    <i class="ri-file-excel-line" style="font-size:1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin:0;">Feedback Data Dump</h3>
+                                    <p style="font-size:0.85em; color:#666;">Excel Export</p>
+                                </div>
+                            </div>
+                            <p style="color:#666; font-size:0.9em; margin-bottom:1.5rem;">
+                                Export all raw anonymous feedback data for external analysis. Includes headers,
+                                comments, and ratings.
+                                <br><br>
+                            </p>
+                            <button class="btn btn-outline" style="width:100%; justify-content:center;"
+                                onclick="exportFeedbackDumpXLSX()">
+                                <i class="ri-download-line"></i> Download Excel
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                <div style="background:#eff6ff; padding:0.75rem; border-radius:50%; color:#2563eb;">
+                                    <i class="ri-bar-chart-box-line" style="font-size:1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin:0;">Dept Performance</h3>
+                                    <p style="font-size:0.85em; color:#666;">Excel Export</p>
+                                </div>
+                            </div>
+                            <p style="color:#666; font-size:0.9em; margin-bottom:1.5rem;">
+                                Export aggregated performance data by department. Useful for comparing department-level
+                                metrics.
+                                <br><br>
+                            </p>
+                            <button class="btn btn-outline" style="width:100%; justify-content:center;"
+                                onclick="exportDeptComparisonXLSX()">
+                                <i class="ri-download-line"></i> Download Excel
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- 8. PROFILE -->
                 <section id="tab-profile" class="tab-section">
                     <div class="card">
-                        <h3>Admin Profile</h3>
-                        <div style="display:flex; gap:2rem; margin-top:2rem;">
-                            <img src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff&size=128"
-                                alt="Profile" style="width:100px; height:100px; border-radius:50%;" id="profile-avatar">
-                            <div style="flex:1; display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
-                                <div><label style="font-size:0.85em; color:#666;">Display Name</label>
-                                    <div class="h4" id="profile-display-name">Admin User</div>
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <h3>Admin Profile</h3>
+                            <button class="btn btn-sm btn-outline" onclick="logout()"><i
+                                    class="ri-logout-box-r-line"></i> Sign Out</button>
+                        </div>
+                        <div style="display:flex; gap:2.5rem; margin-top:2rem; align-items:flex-start;">
+                            <div style="text-align:center;">
+                                <img src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff&size=128"
+                                    alt="Profile"
+                                    style="width:120px; height:120px; border-radius:50%; box-shadow: var(--shadow-md);"
+                                    id="profile-avatar">
+                                <p style="margin-top:0.5rem; font-weight:600; color:var(--neutral-700);"
+                                    id="profile-role-display">Super Admin</p>
+                            </div>
+
+                            <div
+                                style="flex:1; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:2rem;">
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Display
+                                        Name</label>
+                                    <div class="h4" id="profile-display-name"
+                                        style="font-size:1.1rem; margin-top:0.25rem;">Admin User</div>
                                 </div>
-                                <div><label style="font-size:0.85em; color:#666;">Email</label>
-                                    <div class="h4" id="profile-email">admin@fms.local</div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Email
+                                        Address</label>
+                                    <div class="h4" id="profile-email" style="font-size:1.1rem; margin-top:0.25rem;">
+                                        admin@fms.local</div>
                                 </div>
-                                <div><label style="font-size:0.85em; color:#666;">Role</label>
-                                    <div class="h4">Super Administrator</div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Account
+                                        Status</label>
+                                    <div class="h4" style="color:#16a34a; font-size:1.1rem; margin-top:0.25rem;">●
+                                        Active</div>
                                 </div>
-                                <div><label style="font-size:0.85em; color:#666;">Status</label>
-                                    <div class="h4" style="color:#16a34a;">Active</div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">User
+                                        ID</label>
+                                    <div class="h4" id="profile-uid"
+                                        style="font-size:0.9rem; font-family:monospace; color:#666; margin-top:0.25rem;">
+                                        --</div>
+                                </div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Member
+                                        Since</label>
+                                    <div class="h4" id="profile-joined" style="font-size:1.1rem; margin-top:0.25rem;">--
+                                    </div>
+                                </div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Last
+                                        Login</label>
+                                    <div class="h4" id="profile-last-login"
+                                        style="font-size:1.1rem; margin-top:0.25rem;">--</div>
                                 </div>
                             </div>
                         </div>
@@ -602,6 +819,53 @@
     <script src="js/auth.js"></script>
     <script src="js/admin.js"></script>
     <script> checkAuth('admin'); </script>
+    <!-- Manage Subjects Modal -->
+    <div id="subjectModal" class="modal-overlay">
+        <div class="modal-content" style="max-width:600px;">
+            <button class="close-btn" onclick="closeSubjectModal()">&times;</button>
+            <h2 id="subjectModalTitle" style="margin-bottom:0.5rem;">Manage Subjects</h2>
+            <p style="color:#666; margin-bottom:1.5rem;" id="subjectModalSubtitle">Assign subjects to teacher.</p>
+
+            <!-- Add Subject Form -->
+            <form id="addSubjectForm" onsubmit="handleAddSubject(event)"
+                style="background:#f9f9f9; padding:1rem; border-radius:8px; margin-bottom:1.5rem;">
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:0.5rem; align-items:end;">
+                    <div>
+                        <label style="font-size:0.8em; color:#666;">Subject Name</label>
+                        <input type="text" id="assignSubName" required placeholder="e.g. Mathematics-I"
+                            style="padding:0.4rem; width:100%; border:1px solid #ddd; border-radius:4px;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8em; color:#666;">Year</label>
+                        <select id="assignSubYear" required
+                            style="padding:0.4rem; width:100%; border:1px solid #ddd; border-radius:4px;">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8em; color:#666;">Sem</label>
+                        <select id="assignSubSem" required
+                            style="padding:0.4rem; width:100%; border:1px solid #ddd; border-radius:4px;">
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" style="padding:0.5rem 1rem;"><i class="ri-add-line"></i></button>
+                </div>
+            </form>
+
+            <h4 style="margin-bottom:0.5rem;">Assigned Subjects</h4>
+            <div id="assigned-subjects-list"
+                style="max-height:300px; overflow-y:auto; border:1px solid #eee; border-radius:4px;">
+                <!-- List items will go here -->
+                <p style="padding:1rem; color:#999; text-align:center;">No subjects assigned.</p>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

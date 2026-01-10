@@ -19,13 +19,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('t-email-display').innerText = currentUserDoc.email;
                 document.getElementById('t-avatar').src = `https://ui-avatars.com/api/?name=${currentUserDoc.name}&background=0D8ABC&color=fff`;
 
-                // Profile Fields
-                document.getElementById('pName').value = currentUserDoc.name;
-                document.getElementById('pEmail').value = currentUserDoc.email;
-                document.getElementById('pDept').value = currentUserDoc.department;
+                // Profile Fields (New Design)
+                document.getElementById('pNameDisplay').innerText = currentUserDoc.name;
+                document.getElementById('pEmailDisplay').innerText = currentUserDoc.email;
+                document.getElementById('pDeptDisplay').innerText = currentUserDoc.department || 'N/A';
+                document.getElementById('pIdDisplay').innerText = user.uid; // Or custom field if exists
+                document.getElementById('profile-avatar-large').src = `https://ui-avatars.com/api/?name=${currentUserDoc.name}&background=0D8ABC&color=fff&size=128`;
 
                 // Load Data
                 loadStats();
+                loadMySubjects();
                 loadTeacherFeedback();
                 loadAnalytics();
             } else {
@@ -60,11 +63,34 @@ function loadStats() {
         document.getElementById('stat-avg-rating').innerText = avg;
         document.getElementById('stat-total-reviews').innerText = total;
 
-        const isOpen = currentUserDoc.isReviewOpen;
-        const statusEl = document.getElementById('stat-status');
-        statusEl.innerText = isOpen ? 'Open' : 'Closed';
         statusEl.style.color = isOpen ? '#16a34a' : '#ef4444';
     });
+}
+
+function loadMySubjects() {
+    const list = document.getElementById('my-subjects-container');
+    if (!list) return;
+
+    if (!currentUserDoc.assignedSubjects || currentUserDoc.assignedSubjects.length === 0) {
+        list.innerHTML = '<div style="color:#999; text-align:center; padding:1rem; border:1px dashed #eee; border-radius:4px;">No subjects assigned yet.</div>';
+        return;
+    }
+
+    let html = '<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:1rem;">';
+    currentUserDoc.assignedSubjects.forEach(s => {
+        html += `
+         <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:0.75rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-weight:600; font-size:0.95em;">${s.name}</div>
+                <div style="font-size:0.8em; color:#666;">Year ${s.year} • Sem ${s.semester}</div>
+            </div>
+            <div style="font-size:0.75em; padding:0.2rem 0.5rem; border-radius:4px; ${s.isOpen ? 'background:#dcfce7; color:#16a34a;' : 'background:#fee2e2; color:#ef4444;'}">
+                ${s.isOpen ? 'Open' : 'Closed'}
+            </div>
+         </div>`;
+    });
+    html += '</div>';
+    list.innerHTML = html;
 }
 
 async function loadTeacherFeedback() {
@@ -135,6 +161,8 @@ async function loadTeacherFeedback() {
         const filterRating = document.getElementById('tfFilterRating') ? document.getElementById('tfFilterRating').value : 'all';
         const filterSession = sessionSelect ? sessionSelect.value : 'all';
         const filterSubject = subjectSelect ? subjectSelect.value : 'all';
+        const filterYear = document.getElementById('tfFilterYear') ? document.getElementById('tfFilterYear').value : 'all';
+        const filterSemester = document.getElementById('tfFilterSemester') ? document.getElementById('tfFilterSemester').value : 'all';
 
         let html = '';
         let recentHtml = '';
@@ -146,23 +174,34 @@ async function loadTeacherFeedback() {
             if (filterRating !== 'all' && d.rating.toString() !== filterRating) return;
             if (filterSession !== 'all' && d.session !== filterSession) return;
             if (filterSubject !== 'all' && d.subject !== filterSubject) return;
+            if (filterYear !== 'all' && (d.year || '1') !== filterYear) return;
+            if (filterSemester !== 'all' && (d.semester || '1') !== filterSemester) return;
 
             const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
-            const color = d.rating < 3 ? '#ef4444' : (d.rating >= 4 ? '#10b981' : '#f59e0b');
-            const stars = '★'.repeat(d.rating) + '☆'.repeat(5 - d.rating);
+
+            let colorClass = '#f59e0b';
+            let statusClass = 'neutral';
+            if (d.rating <= 2) { colorClass = '#ef4444'; statusClass = 'negative'; }
+            if (d.rating >= 4) { colorClass = '#10b981'; statusClass = 'positive'; }
 
             const card = `
-            <div class="feedback-card">
-                <div style="padding:1rem; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:600; font-size:0.9em; color:#666;">${d.subject || 'General'}</span>
-                        <div style="color:${color}; font-weight:bold;">${stars}</div>
+            <div class="feedback-card ${statusClass}">
+                <div class="feedback-header">
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                         <img src="https://ui-avatars.com/api/?name=${currentUserDoc.name}&background=random&size=32" style="width:32px; height:32px; border-radius:50%;">
+                        <div style="line-height:1.2;">
+                            <div style="font-weight:600; font-size:0.95rem;">${d.subject || 'General'}</div>
+                            <div style="font-size:0.75rem; color:#666;">${currentUserDoc.name}</div>
+                        </div>
+                    </div>
+                    <span class="rating-badge" style="background:${colorClass}20; color:${colorClass}">${d.rating} ★</span>
                 </div>
-                <div style="padding:1rem;">
-                    <p style="color:#444; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
+                <div class="feedback-body">
+                    <p style="color:#475569; font-size:0.95em; line-height:1.5;">"${d.comments || 'No comments'}"</p>
                 </div>
-                <div style="background:#fafafa; padding:0.5rem 1rem; border-top:1px solid #f0f0f0; display:flex; justify-content:space-between; font-size:0.8em; color:#888;">
-                    <span>Session: ${d.session || 'N/A'}</span>
-                    <span>${date}</span>
+                <div class="feedback-footer">
+                    <span><i class="ri-calendar-line"></i> ${date}</span>
+                    <span>${d.session || '-'} | Y${d.year || '-'}</span>
                 </div>
             </div>`;
 
@@ -331,3 +370,177 @@ async function loadAnalytics() {
         });
     }
 }
+
+// --- Export Functionality ---
+
+async function exportTeacherReportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const name = document.getElementById('t-name-display').innerText;
+
+    // Filter Context
+    const fYear = document.getElementById('exportFilterYear').value;
+    const fSem = document.getElementById('exportFilterSemester').value;
+    let filterText = (fYear === 'all' && fSem === 'all') ? "All Sessions" : `Filtered: Year ${fYear !== 'all' ? fYear : 'All'} / Sem ${fSem !== 'all' ? fSem : 'All'}`;
+
+    // Header
+    doc.setFontSize(18);
+    doc.text(`Performance Report: ${name}`, 14, 20);
+    doc.setFontSize(12);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 28);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(filterText, 14, 34);
+    doc.setTextColor(0);
+
+    let yPos = 45;
+
+    // Fetch Filtered Stats (Calculate purely for this PDF)
+    try {
+        const uid = firebase.auth().currentUser.uid;
+        let query = db.collection('feedback').where('teacher_id', '==', uid);
+        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fSem !== 'all') query = query.where('semester', '==', fSem);
+
+        doc.text("Calculating performance metrics...", 14, yPos);
+
+        const snap = await query.get();
+        let total = 0;
+        let sum = 0;
+        const subBreakdown = {};
+
+        snap.forEach(d => {
+            const data = d.data();
+            total++;
+            sum += Number(data.rating);
+            const sub = data.subject || 'Unknown';
+            if (!subBreakdown[sub]) subBreakdown[sub] = { sum: 0, count: 0 };
+            subBreakdown[sub].sum += Number(data.rating);
+            subBreakdown[sub].count++;
+        });
+
+        const avgRating = total ? (sum / total).toFixed(2) : 0;
+
+        // Clear Loading Text
+        doc.setFillColor(255, 255, 255);
+        doc.rect(10, 40, 100, 10, 'F');
+
+        // --- Certificate Logic ---
+        // Only award certificate if High Rating AND Sufficient Volume (e.g. > 5 reviews) 
+        // AND if it represents a significant chunk (e.g. not just 1 filter result)
+        if (avgRating >= 4.5 && total >= 5) {
+            doc.setDrawColor(255, 215, 0);
+            doc.setLineWidth(1);
+            doc.rect(10, 40, 190, 40);
+
+            doc.setFontSize(22);
+            doc.setTextColor(218, 165, 32); // Gold
+            doc.text("Certificate of Excellence", 105, 55, { align: 'center' });
+
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text("For Outstanding Teaching Performance", 105, 65, { align: 'center' });
+            doc.text(`Average Rating: ${avgRating} / 5.0`, 105, 75, { align: 'center' });
+
+            yPos = 95;
+        } else {
+            doc.setFontSize(12);
+            doc.text(`Average Rating: ${avgRating} / 5.0`, 14, yPos);
+            doc.text(`Total Feedbacks: ${total}`, 14, yPos + 7);
+            yPos += 15;
+        }
+
+        // Subject Table
+        const rows = Object.keys(subBreakdown).map(s => [
+            s,
+            (subBreakdown[s].sum / subBreakdown[s].count).toFixed(2),
+            subBreakdown[s].count
+        ]);
+
+        if (rows.length > 0) {
+            doc.setFontSize(12);
+            doc.setTextColor(0);
+            doc.text("Subject Breakdown", 14, yPos);
+            doc.autoTable({
+                startY: yPos + 5,
+                head: [['Subject', 'Avg Rating', 'Count']],
+                body: rows
+            });
+            yPos = doc.lastAutoTable.finalY + 15;
+        } else {
+            doc.text("No data found.", 14, yPos);
+            yPos += 10;
+        }
+
+        // Skip Dashboard Charts if filtered, as they are static.
+        if (fYear === 'all' && fSem === 'all') {
+            // Optional: Include captured charts if needed
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(150);
+            doc.text("(Standard dashboard charts omitted for filtered custom report)", 14, yPos);
+        }
+
+        doc.save(`Performance_Report_${name.replace(/\s+/g, '_')}_${fYear}_${fSem}.pdf`);
+
+    } catch (e) {
+        console.error(e);
+        doc.text("Error generating report.", 14, yPos);
+        doc.save("Error.pdf");
+    }
+}
+
+async function exportMyFeedbackXLSX() {
+    const btn = event.target ? event.target.closest('button') : null;
+    let originalText = '';
+    if (btn) { originalText = btn.innerHTML; btn.innerHTML = 'Exporting...'; }
+
+    try {
+        const uid = firebase.auth().currentUser.uid;
+
+        const fYear = document.getElementById('exportFilterYear').value;
+        const fSem = document.getElementById('exportFilterSemester').value;
+        const note = (fYear === 'all' && fSem === 'all') ? "" : `Filtered Year:${fYear} Sem:${fSem}`;
+
+        let query = db.collection('feedback').where('teacher_id', '==', uid);
+        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fSem !== 'all') query = query.where('semester', '==', fSem);
+
+        const snap = await query.get();
+
+        if (snap.empty) { alert("No feedback data matches criteria."); return; }
+
+        const data = [];
+        snap.forEach(doc => {
+            const d = doc.data();
+            data.push({
+                "Subject": d.subject || 'N/A',
+                "Session": d.session || 'N/A',
+                "Rating": d.rating,
+                "Comments": d.comments || '',
+                "Year": d.year || '-',
+                "Semester": d.semester || '-',
+                "Date": d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : '-',
+                "Context": note
+            });
+        });
+
+        // Sort by Date Desc
+        data.sort((a, b) => new Date(b.Date) - new Date(a.Date));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "My Feedback");
+        XLSX.writeFile(wb, `My_Feedback_History_Y${fYear}_S${fSem}.xlsx`);
+
+    } catch (e) {
+        console.error(e);
+        alert("Export failed: " + e.message);
+    } finally {
+        if (btn) btn.innerHTML = originalText;
+    }
+}
+
+// Global Bind
+window.exportTeacherReportPDF = exportTeacherReportPDF;
+window.exportMyFeedbackXLSX = exportMyFeedbackXLSX;

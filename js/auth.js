@@ -86,6 +86,26 @@ function renderDynamicFields(role) {
             <option value="106">ECE (106)</option>
         </select>
       </div>
+      <div style="display:flex; gap:1rem;">
+          <div class="form-group" style="flex:1;">
+            <label>Year</label>
+            <select id="regYear" required class="form-control">
+                <option value="" disabled selected>Select</option>
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+                <option value="3">3rd Year</option>
+                <option value="4">4th Year</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Semester</label>
+            <select id="regSem" required class="form-control">
+                <option value="" disabled selected>Select</option>
+                <option value="1">Sem 1</option>
+                <option value="2">Sem 2</option>
+            </select>
+          </div>
+      </div>
     `;
     } else if (role === 'department') {
         html += `
@@ -139,6 +159,47 @@ function getAuthEmail(role, mode) {
 
 // --- Core Logic ---
 
+// --- Validation Helpers ---
+function validateRegistration(role) {
+    // 1. Strings
+    const name = document.getElementById('regName').value.trim();
+    if (!name || name.length < 3) throw new Error("Name must be at least 3 characters.");
+
+    // 2. Password (Common)
+    const pass = document.getElementById('regPassword').value;
+    const strongPassRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!strongPassRegex.test(pass)) {
+        throw new Error("Weak Password. Must be 8+ chars, include Uppercase, Lowercase, Number, and Special Char.");
+    }
+
+    // 3. Role Specific
+    if (role === 'student') {
+        const id = document.getElementById('regId').value;
+        const dept = document.getElementById('regDept').value;
+        // Reg No: 11 digits, numbers only
+        if (!/^\d{11}$/.test(id)) throw new Error("Registration Number must be exactly 11 digits.");
+    }
+
+    if (role === 'department') {
+        const id = document.getElementById('regId').value;
+        const session = document.getElementById('regSession').value;
+        // Dept ID: 3 digits (e.g., 105)
+        if (!/^\d{3}$/.test(id)) throw new Error("Department Code must be exactly 3 digits.");
+        // Session: YYYY-YY (4 year gap check)
+        const sessParts = session.split('-');
+        if (!/^\d{4}-\d{2}$/.test(session) || sessParts.length !== 2) {
+            throw new Error("Session format must be 'YYYY-YY' (e.g. 2023-27).");
+        }
+        const startY = parseInt(sessParts[0]);
+        const endY = parseInt(sessParts[1]); // This is YY, need to be careful. User said "4 years gap", e.g. 23 -> 27
+        // Let's assume input is full YYYY-YY or YYYY-yy
+        // Actually, user example: "2023-27". 27 is YY.
+        // Valid gap: 23 to 27 is 4 years.
+        const startYY = startY % 100;
+        if (endY !== startYY + 4) throw new Error("Session must have a 4-year duration (e.g. 2023-27).");
+    }
+}
+
 async function handleRegisterForm(e) {
     e.preventDefault();
     const errorMsg = document.getElementById('regError');
@@ -146,9 +207,14 @@ async function handleRegisterForm(e) {
 
     errorMsg.style.display = 'none';
     btn.disabled = true;
-    btn.innerText = "Registering...";
+    btn.innerText = "Validating...";
 
     try {
+        // --- VALIDATION STEP ---
+        validateRegistration(selectedRole);
+
+        btn.innerText = "Registering...";
+
         const email = getAuthEmail(selectedRole, 'register');
         const password = document.getElementById('regPassword').value;
         const name = document.getElementById('regName').value;
@@ -171,11 +237,37 @@ async function handleRegisterForm(e) {
         if (selectedRole === 'student') {
             profile.regNum = document.getElementById('regId').value;
             profile.department = document.getElementById('regDept').value;
+            profile.year = document.getElementById('regYear').value;
+            profile.semester = document.getElementById('regSem').value;
+            // Default Session? Maybe leave blank or derive?
+            // User doesn't select session in public form usually? 
+            // We can leave session blank or 'Pending Allocation' until approval/dept assigns it.
+            profile.session = 'Pending';
         } else if (selectedRole === 'department') {
             profile.deptId = document.getElementById('regId').value;
-            profile.session = document.getElementById('regSession').value;
+            const sIn = document.getElementById('regSession').value;
+            profile.session = sIn;
+            // Resolve Correct Name from Code if possible? 
+            // Or just trust user input? User asked to "validate dept name should be either from this (CSE, ME...)".
+            // But Dept Register form currently asks for ID and Session. It relies on Admin to clean up?
+            // Wait, implementation plan said "Update renderDynamicFields for Dept Registration...". 
+            // I should update renderDynamicFields to include Name Dropdown or Fixed Map based on ID.
+            // Let's stick to what's in the form: ID and Session. 
+            // Wait, if I'm validating Dept CODE, I should also map the Name correctly.
+            // The map is given: 101->CE, 103->ME, 104->EEE, 105->CSE, 106->ECE.
+            // I will inject the correct name into the profile based on ID.
+            const branchMap = { '101': 'CE', '103': 'ME', '104': 'EEE', '105': 'CSE', '106': 'ECE' };
+            if (branchMap[profile.deptId]) profile.name = branchMap[profile.deptId];
+            // Override 'name' input? The main 'Full Name' field might be used for 'Department Head Name' or just 'CSE Department'.
+            // Let's keep 'name' as user input but add 'branchName' derived.
+            profile.branch = branchMap[profile.deptId] || 'Other';
         } else if (selectedRole === 'teacher') {
-            profile.department = document.getElementById('regDept').value;
+            const dName = document.getElementById('regDept').value.toUpperCase();
+            if (!['CSE', 'ME', 'CE', 'ECE', 'EEE'].includes(dName)) {
+                // Soft warn or Error? User said "department name should be either from this...".
+                throw new Error("Invalid Department. Allowed: CSE, ME, CE, ECE, EEE.");
+            }
+            profile.department = dName;
         }
 
         // 3. Save to Firestore
