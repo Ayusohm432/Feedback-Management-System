@@ -47,7 +47,7 @@ function switchTab(tabName, linkEl) {
     if (tabName === 'approvals') loadApprovals();
     if (tabName === 'students') loadUserTable('student', 'students-table-container');
     if (tabName === 'teachers') loadUserTable('teacher', 'teachers-table-container');
-    if (tabName === 'departments') loadUserTable('department', 'depts-table-container');
+    if (tabName === 'departments') loadUserTable('department', 'departments-table-container');
     if (tabName === 'profile') loadProfile();
 }
 
@@ -70,7 +70,7 @@ function loadStats() {
         document.getElementById('count-pending').innerText = pending;
     });
 }
-function loadActivityFeed() { /* Same as before */
+function loadActivityFeed() {
     const feed = document.getElementById('activity-feed');
     db.collection('users').orderBy('createdAt', 'desc').limit(5).get().then(snap => {
         if (snap.empty) { feed.innerHTML = "No recent activity."; return; }
@@ -78,10 +78,25 @@ function loadActivityFeed() { /* Same as before */
         snap.forEach(doc => {
             const u = doc.data();
             const date = u.createdAt ? new Date(u.createdAt.seconds * 1000).toLocaleDateString() : 'Recently';
-            let icon = 'ri-user-line';
-            if (u.role === 'student') icon = 'ri-user-smile-line';
-            if (u.role === 'teacher') icon = 'ri-presentation-line';
-            const html = `<div class="activity-item"><div class="activity-icon"><i class="${icon}"></i></div><div><strong>New ${u.role} Registration</strong><div style="font-size:0.9em; color:#666;">${u.name} joined.</div><small style="color:#999;">${date}</small></div></div>`;
+            let icon = 'ri-notification-line';
+            let color = '#666';
+            let bg = '#f1f5f9';
+
+            if (u.role === 'student') { icon = 'ri-user-smile-line'; color = '#2563eb'; bg = '#dbeafe'; }
+            if (u.role === 'teacher') { icon = 'ri-user-star-line'; color = '#9333ea'; bg = '#f3e8ff'; }
+            if (u.role === 'department') { icon = 'ri-building-line'; color = '#ea580c'; bg = '#ffedd5'; }
+
+            const html = `
+            <div class="activity-item">
+                <div class="activity-icon" style="background:${bg}; color:${color};">
+                    <i class="${icon}"></i>
+                </div>
+                <div>
+                    <div style="font-size:0.95rem; font-weight:500;">New ${u.role} Registration</div>
+                    <div style="font-size:0.85em; color:#666;">${u.name} joined.</div>
+                    <small style="color:#999; font-size:0.75em;">${date}</small>
+                </div>
+            </div>`;
             feed.insertAdjacentHTML('beforeend', html);
         });
     });
@@ -93,25 +108,86 @@ let partChartInstance = null;
 async function loadAnalytics() {
     const feedbackSnap = await db.collection('feedback').get();
     const deptRatings = {};
+    const ratingDist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const dateTrend = {};
+
     feedbackSnap.forEach(doc => {
         const d = doc.data();
+        // Avg Calculation
         let dept = d.department || 'General';
         if (!deptRatings[dept]) deptRatings[dept] = [];
         deptRatings[dept].push(Number(d.rating));
+
+        // Distribution
+        let r = Math.round(Number(d.rating));
+        if (r < 1) r = 1; if (r > 5) r = 5;
+        ratingDist[r]++;
+
+        // Trend (Group by Date)
+        if (d.submitted_at) {
+            const dateKey = new Date(d.submitted_at.seconds * 1000).toLocaleDateString(); // e.g., "1/10/2026"
+            dateTrend[dateKey] = (dateTrend[dateKey] || 0) + 1;
+        }
     });
+
+    // 1. Dept Performance
     const labels = Object.keys(deptRatings);
     const data = labels.map(dept => {
         const ratings = deptRatings[dept];
         return (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1);
     });
 
-    const ctx1 = document.getElementById('deptChart').getContext('2d');
     if (deptChartInstance) deptChartInstance.destroy();
-    deptChartInstance = new Chart(ctx1, { type: 'bar', data: { labels: labels.length ? labels : ['No Data'], datasets: [{ label: 'Avg Rating', data: data.length ? data : [0], backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgb(59, 130, 246)', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 5 } } } });
+    deptChartInstance = new Chart(document.getElementById('deptChart').getContext('2d'), {
+        type: 'bar',
+        data: { labels: labels.length ? labels : ['No Data'], datasets: [{ label: 'Avg Rating', data: data.length ? data : [0], backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgb(59, 130, 246)', borderWidth: 1 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 5 } } }
+    });
 
-    const ctx2 = document.getElementById('participationChart').getContext('2d');
+    // 2. Participation (Mock vs Real ratio if possible, or keep as is)
     if (partChartInstance) partChartInstance.destroy();
-    partChartInstance = new Chart(ctx2, { type: 'doughnut', data: { labels: ['Submitted', 'Pending'], datasets: [{ data: [65, 35], backgroundColor: ['#10b981', '#e5e7eb'] }] }, options: { responsive: true, maintainAspectRatio: false } });
+    partChartInstance = new Chart(document.getElementById('participationChart').getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: ['Submitted', 'Pending'], datasets: [{ data: [feedbackSnap.size, Math.max(0, 100 - feedbackSnap.size)], backgroundColor: ['#10b981', '#e5e7eb'] }] },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // 3. Rating Distribution
+    const distData = [ratingDist[1], ratingDist[2], ratingDist[3], ratingDist[4], ratingDist[5]];
+    const ctx3 = document.getElementById('ratingDistChart').getContext('2d');
+    if (window.ratingDistInstance) window.ratingDistInstance.destroy();
+    window.ratingDistInstance = new Chart(ctx3, {
+        type: 'polarArea',
+        data: {
+            labels: ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'],
+            datasets: [{
+                data: distData,
+                backgroundColor: ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e']
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    // 4. Trend
+    const sortedDates = Object.keys(dateTrend).sort((a, b) => new Date(a) - new Date(b)).slice(-7); // Last 7 recorded days
+    const trendData = sortedDates.map(d => dateTrend[d]);
+    const ctx4 = document.getElementById('feedbackTrendChart').getContext('2d');
+    if (window.trendInstance) window.trendInstance.destroy();
+    window.trendInstance = new Chart(ctx4, {
+        type: 'line',
+        data: {
+            labels: sortedDates,
+            datasets: [{
+                label: 'Submissions',
+                data: trendData,
+                borderColor: '#6366f1',
+                tension: 0.3,
+                fill: true,
+                backgroundColor: 'rgba(99, 102, 241, 0.1)'
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { set: 1 } } } }
+    });
 }
 
 // --- 3. User Tables & Search & Review Control ---
@@ -360,8 +436,9 @@ async function loadFeedbackExplorer() {
                 const stars = '★'.repeat(data.rating) + '☆'.repeat(5 - data.rating);
                 // Color Logic
                 let colorClass = '#f59e0b'; // yellow
-                if (data.rating <= 2) colorClass = '#ef4444'; // red
-                if (data.rating >= 4) colorClass = '#10b981'; // green
+                let statusClass = 'neutral';
+                if (data.rating <= 2) { colorClass = '#ef4444'; statusClass = 'negative'; }
+                if (data.rating >= 4) { colorClass = '#10b981'; statusClass = 'positive'; }
 
                 // Find Teacher Name (if not in feedback, look up in cache)
                 let teacherName = "Unknown Teacher";
@@ -371,21 +448,24 @@ async function loadFeedbackExplorer() {
                 }
 
                 html += `
-                    <div class="feedback-card">
+                    <div class="feedback-card ${statusClass}">
                         <div class="feedback-header">
-                            <div>
-                                <span class="rating-badge" style="background:${colorClass}20; color:${colorClass}">${data.rating}/5</span>
-                                <span style="font-weight:600; margin-left:0.5rem;">${teacherName}</span>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <img src="https://ui-avatars.com/api/?name=${teacherName}&background=random&size=32" style="width:32px; height:32px; border-radius:50%;">
+                                <div style="line-height:1.2;">
+                                    <div style="font-weight:600; font-size:0.95rem;">${teacherName}</div>
+                                    <div style="font-size:0.75rem; color:#666;">${data.department || 'Gen'}</div>
+                                </div>
                             </div>
-                            <small style="color:#999">${date}</small>
+                            <span class="rating-badge" style="background:${colorClass}20; color:${colorClass}">${data.rating} ★</span>
                         </div>
                         <div class="feedback-body">
-                            <h4 style="margin-bottom:0.5rem; font-size:1em;">${data.subject || 'Subject Not Specified'}</h4>
-                            <p style="color:#444; font-size:0.95em; line-height:1.5;">"${data.comments || ''}"</p>
+                            <h4 style="margin-bottom:0.5rem; font-size:1em; color:#1e293b;">${data.subject || 'General'}</h4>
+                            <p style="color:#475569; font-size:0.95em; line-height:1.5;">"${data.comments || ''}"</p>
                         </div>
                         <div class="feedback-footer">
-                            <span style="font-size:0.85em;">${data.department || 'Gen'} | ${data.session || '-'} | Y${data.year || '-'} S${data.semester || '-'}</span>
-                            <span style="color:${colorClass}">${stars}</span>
+                            <span><i class="ri-calendar-line"></i> ${date}</span>
+                            <span>${data.session || '-'} | Y${data.year || '-'}</span>
                         </div>
                     </div>
                 `;

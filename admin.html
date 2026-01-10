@@ -301,7 +301,7 @@
                         Approvals</a></li>
                 <li><a onclick="switchTab('students', this)" class="sidebar-link"><i class="ri-group-line"></i>
                         Students</a></li>
-                <li><a onclick="switchTab('teachers', this)" class="sidebar-link"><i class="ri-user-tie-line"></i>
+                <li><a onclick="switchTab('teachers', this)" class="sidebar-link"><i class="ri-user-3-line"></i>
                         Teachers</a></li>
                 <li><a onclick="switchTab('departments', this)" class="sidebar-link"><i class="ri-building-line"></i>
                         Departments</a></li>
@@ -375,15 +375,26 @@
                         </div>
                         <div class="card">
                             <h3><i class="ri-flashlight-line"></i> Quick Actions</h3>
-                            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem;">
                                 <button class="btn btn-outline"
-                                    onclick="switchTab('students', document.querySelectorAll('.sidebar-link')[4])">Add
-                                    Student</button>
+                                    onclick="switchTab('students', document.querySelectorAll('.sidebar-link')[4])">
+                                    <i class="ri-user-add-line"></i> Add Student
+                                </button>
                                 <button class="btn btn-outline"
-                                    onclick="switchTab('teachers', document.querySelectorAll('.sidebar-link')[5])">Add
-                                    Teacher</button>
-                                <button class="btn btn-outline" onclick="downloadSample()">Download CSV
-                                    Template</button>
+                                    onclick="switchTab('teachers', document.querySelectorAll('.sidebar-link')[5])">
+                                    <i class="ri-user-follow-line"></i> Add Teacher
+                                </button>
+                                <button class="btn btn-outline"
+                                    onclick="switchTab('approvals', document.querySelectorAll('.sidebar-link')[3])">
+                                    <i class="ri-checkbox-circle-line"></i> Reviews
+                                </button>
+                                <button class="btn btn-outline"
+                                    onclick="switchTab('analytics', document.querySelectorAll('.sidebar-link')[1])">
+                                    <i class="ri-bar-chart-2-line"></i> Analytics
+                                </button>
+                                <button class="btn btn-outline" style="grid-column: 1 / -1;" onclick="downloadSample()">
+                                    <i class="ri-file-download-line"></i> Download CSV Template
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -391,14 +402,30 @@
 
                 <!-- 2. ANALYTICS -->
                 <section id="tab-analytics" class="tab-section">
-                    <div class="stats-row">
-                        <div class="card" style="flex:2;">
-                            <h3>Department Performance</h3>
-                            <div class="chart-container"><canvas id="deptChart"></canvas></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                        <div class="card">
+                            <h3>Department Performance (Avg Rating)</h3>
+                            <div class="chart-container">
+                                <canvas id="deptChart"></canvas>
+                            </div>
                         </div>
-                        <div class="card" style="flex:1;">
-                            <h3>Participation Rate</h3>
-                            <div class="chart-container"><canvas id="participationChart"></canvas></div>
+                        <div class="card">
+                            <h3>Feedback Participation</h3>
+                            <div class="chart-container">
+                                <canvas id="participationChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Rating Distribution</h3>
+                            <div class="chart-container">
+                                <canvas id="ratingDistChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <h3>Feedback Trend (Last 7 Days)</h3>
+                            <div class="chart-container">
+                                <canvas id="feedbackTrendChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -618,22 +645,59 @@
                 <!-- 8. PROFILE -->
                 <section id="tab-profile" class="tab-section">
                     <div class="card">
-                        <h3>Admin Profile</h3>
-                        <div style="display:flex; gap:2rem; margin-top:2rem;">
-                            <img src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff&size=128"
-                                alt="Profile" style="width:100px; height:100px; border-radius:50%;" id="profile-avatar">
-                            <div style="flex:1; display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem;">
-                                <div><label style="font-size:0.85em; color:#666;">Display Name</label>
-                                    <div class="h4" id="profile-display-name">Admin User</div>
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <h3>Admin Profile</h3>
+                            <button class="btn btn-sm btn-outline" onclick="logout()"><i
+                                    class="ri-logout-box-r-line"></i> Sign Out</button>
+                        </div>
+                        <div style="display:flex; gap:2.5rem; margin-top:2rem; align-items:flex-start;">
+                            <div style="text-align:center;">
+                                <img src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff&size=128"
+                                    alt="Profile"
+                                    style="width:120px; height:120px; border-radius:50%; box-shadow: var(--shadow-md);"
+                                    id="profile-avatar">
+                                <p style="margin-top:0.5rem; font-weight:600; color:var(--neutral-700);"
+                                    id="profile-role-display">Super Admin</p>
+                            </div>
+
+                            <div
+                                style="flex:1; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:2rem;">
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Display
+                                        Name</label>
+                                    <div class="h4" id="profile-display-name"
+                                        style="font-size:1.1rem; margin-top:0.25rem;">Admin User</div>
                                 </div>
-                                <div><label style="font-size:0.85em; color:#666;">Email</label>
-                                    <div class="h4" id="profile-email">admin@fms.local</div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Email
+                                        Address</label>
+                                    <div class="h4" id="profile-email" style="font-size:1.1rem; margin-top:0.25rem;">
+                                        admin@fms.local</div>
                                 </div>
-                                <div><label style="font-size:0.85em; color:#666;">Role</label>
-                                    <div class="h4">Super Administrator</div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Account
+                                        Status</label>
+                                    <div class="h4" style="color:#16a34a; font-size:1.1rem; margin-top:0.25rem;">●
+                                        Active</div>
                                 </div>
-                                <div><label style="font-size:0.85em; color:#666;">Status</label>
-                                    <div class="h4" style="color:#16a34a;">Active</div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">User
+                                        ID</label>
+                                    <div class="h4" id="profile-uid"
+                                        style="font-size:0.9rem; font-family:monospace; color:#666; margin-top:0.25rem;">
+                                        --</div>
+                                </div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Member
+                                        Since</label>
+                                    <div class="h4" id="profile-joined" style="font-size:1.1rem; margin-top:0.25rem;">--
+                                    </div>
+                                </div>
+                                <div><label
+                                        style="font-size:0.85em; color:#666; text-transform:uppercase; letter-spacing:0.5px;">Last
+                                        Login</label>
+                                    <div class="h4" id="profile-last-login"
+                                        style="font-size:1.1rem; margin-top:0.25rem;">--</div>
                                 </div>
                             </div>
                         </div>
