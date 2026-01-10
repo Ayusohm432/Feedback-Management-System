@@ -650,6 +650,28 @@
 
                 <!-- 9. EXPORTS -->
                 <section id="tab-exports" class="tab-section">
+                    <div class="card" style="margin-bottom: 2rem;">
+                        <h3><i class="ri-filter-3-line"></i> Report Filters</h3>
+                        <div style="display:flex; gap:1rem; margin-top:1rem; flex-wrap:wrap; align-items:center;">
+                            <label style="font-weight:500; font-size:0.9em; color:#666;">Filter Data By:</label>
+                            <select id="exportFilterYear"
+                                style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <option value="all">All Years</option>
+                                <option value="1">1st Year</option>
+                                <option value="2">2nd Year</option>
+                                <option value="3">3rd Year</option>
+                                <option value="4">4th Year</option>
+                            </select>
+                            <select id="exportFilterSemester"
+                                style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <option value="all">All Semesters</option>
+                                <option value="1">Sem 1</option>
+                                <option value="2">Sem 2</option>
+                            </select>
+                            <span style="font-size:0.85em; color:#999; margin-left:auto;">*Filters apply to all exports
+                                below</span>
+                        </div>
+                    </div>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
                         <div class="card">
                             <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">

@@ -704,60 +704,119 @@ async function exportSystemSummaryPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 
+    // Get Filter Context
+    const fYear = document.getElementById('exportFilterYear').value;
+    const fSem = document.getElementById('exportFilterSemester').value;
+    let filterText = "All Years, All Semesters";
+    if (fYear !== 'all' || fSem !== 'all') {
+        filterText = `Year: ${fYear === 'all' ? 'All' : fYear} | Sem: ${fSem === 'all' ? 'All' : fSem}`;
+    }
+
     // Title
     doc.setFontSize(18);
     doc.text("Feedback Management System - System Summary", 14, 20);
     doc.setFontSize(12);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 30);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 28);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Report Range: ${filterText}`, 14, 34);
+    doc.setTextColor(0);
 
-    // Stats
-    const sCount = document.getElementById('count-student').innerText;
-    const tCount = document.getElementById('count-teacher').innerText;
-    const dCount = document.getElementById('count-dept').innerText;
+    // Stats (These are live dashboard stats, might not reflect filters unless we recalculate. 
+    // To match "details and performance based on feedback", we'll calculate filtered stats)
 
-    doc.text(`Total Students: ${sCount}`, 14, 45);
-    doc.text(`Total Teachers: ${tCount}`, 14, 52);
-    doc.text(`Active Departments: ${dCount}`, 14, 59);
+    let yPos = 45;
+    doc.text("Loading filtered data...", 14, yPos);
 
-    let yPos = 70;
-
-    // Charts
     try {
-        if (deptChartInstance) {
-            const img = deptChartInstance.toBase64Image();
-            doc.addImage(img, 'PNG', 14, yPos, 180, 80);
-            doc.text("Department Performance (Avg Rating)", 14, yPos - 5);
-            yPos += 95;
+        // Fetch Feedback for Stats
+        let query = db.collection('feedback');
+        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fSem !== 'all') query = query.where('semester', '==', fSem);
+
+        const snap = await query.get();
+        const totalFeedback = snap.size;
+        let sumRating = 0;
+        const deptRatings = {};
+
+        snap.forEach(d => {
+            const data = d.data();
+            sumRating += Number(data.rating);
+            const dept = data.department || 'General';
+            if (!deptRatings[dept]) deptRatings[dept] = { sum: 0, count: 0 };
+            deptRatings[dept].sum += Number(data.rating);
+            deptRatings[dept].count++;
+        });
+
+        const avgRating = totalFeedback ? (sumRating / totalFeedback).toFixed(2) : "0.00";
+
+        // Clean previous loading text area (approx)
+        doc.setFillColor(255, 255, 255);
+        doc.rect(10, 40, 100, 10, 'F');
+
+        doc.setFontSize(12);
+        doc.text(`Total Filtered Feedback: ${totalFeedback}`, 14, 45);
+        doc.text(`Overall Average Rating: ${avgRating} / 5.0`, 14, 52);
+
+        yPos = 65;
+
+        // Department Performance Table (Filtered)
+        const tableData = Object.keys(deptRatings).map(dept => [
+            dept,
+            (deptRatings[dept].sum / deptRatings[dept].count).toFixed(2),
+            deptRatings[dept].count
+        ]);
+
+        if (tableData.length > 0) {
+            doc.text("Department Performance (Filtered)", 14, yPos);
+            doc.autoTable({
+                startY: yPos + 5,
+                head: [['Department', 'Avg Rating', 'Feedback Count']],
+                body: tableData,
+            });
+            yPos = doc.lastAutoTable.finalY + 15;
+        } else {
+            doc.text("No data found for selected filters.", 14, yPos);
+            yPos += 15;
         }
 
-        if (window.trendInstance) {
-            if (yPos > 200) { doc.addPage(); yPos = 20; }
-            const img = window.trendInstance.toBase64Image();
-            doc.addImage(img, 'PNG', 14, yPos, 180, 80);
-            doc.text("Submission Trend (Last 7 Days)", 14, yPos - 5);
-        }
+        // Charts (Note: Dashboard charts are "All Time" unless dashboard itself is filtered. 
+        // We will skip dashboard charts here to avoid confusion, or include them with a disclaimer. 
+        // User requested "details based on feedback", so the table above is better.)
+
+        doc.save(`FMS_System_Summary_${fYear}_${fSem}.pdf`);
+
     } catch (e) {
-        console.warn("Chart export error:", e);
-        doc.text("Chart data unavailable for export.", 14, yPos);
+        console.warn("Export error:", e);
+        doc.text("Error generating report data.", 14, yPos + 10);
+        doc.save("FMS_Error.pdf");
     }
-
-    doc.save("FMS_System_Summary.pdf");
 }
 
 async function exportFeedbackDumpXLSX() {
-    // Show Loading
     const btn = event.target ? event.target.closest('button') : null;
     let originalText = '';
     if (btn) { originalText = btn.innerHTML; btn.innerHTML = 'Generating...'; }
 
     try {
-        const snap = await db.collection('feedback').orderBy('submitted_at', 'desc').limit(2000).get();
+        const fYear = document.getElementById('exportFilterYear').value;
+        const fSem = document.getElementById('exportFilterSemester').value;
+
+        // Base Query
+        let query = db.collection('feedback').orderBy('submitted_at', 'desc').limit(2000); // safety filtered limit
+        // Firestore composite index constraints might bite if we combine range and equality too freely.
+        // Safer to fetch latest 2000 and filter client-side for "Data Dump" to avoid index errors on dynamic deployment.
+
+        const snap = await query.get();
         const data = [];
 
-        // Pre-fetch teacher names if needed, but we have allTeachers global
-        // Map data
         snap.forEach(doc => {
             const d = doc.data();
+
+            // Client-Side Filter
+            if (fYear !== 'all' && (d.year || '1').toString() !== fYear) return;
+            if (fSem !== 'all' && (d.semester || '1').toString() !== fSem) return;
+
             const teacher = allTeachers.find(t => t.id === d.teacher_id);
             data.push({
                 "Subject": d.subject || 'N/A',
@@ -771,10 +830,15 @@ async function exportFeedbackDumpXLSX() {
             });
         });
 
+        if (data.length === 0) {
+            alert("No data found matching filters in recent 2000 records.");
+            return;
+        }
+
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Feedback Data");
-        XLSX.writeFile(wb, "FMS_Feedback_Dump.xlsx");
+        XLSX.writeFile(wb, `FMS_Dump_Y${fYear}_S${fSem}.xlsx`);
 
     } catch (e) {
         console.error(e);
@@ -785,13 +849,24 @@ async function exportFeedbackDumpXLSX() {
 }
 
 async function exportDeptComparisonXLSX() {
+    // Dept Performance Export
+    const btn = event.target ? event.target.closest('button') : null;
+    if (btn) btn.innerText = "Generating...";
+
     try {
-        const snap = await db.collection('feedback').get();
+        const fYear = document.getElementById('exportFilterYear').value;
+        const fSem = document.getElementById('exportFilterSemester').value;
+
+        const snap = await db.collection('feedback').get(); // Get all for aggregation (careful with size)
         const deptStats = {};
 
-        // Aggregate
         snap.forEach(doc => {
             const d = doc.data();
+
+            // Filter
+            if (fYear !== 'all' && (d.year || '1').toString() !== fYear) return;
+            if (fSem !== 'all' && (d.semester || '1').toString() !== fSem) return;
+
             const dept = d.department || 'General';
             if (!deptStats[dept]) deptStats[dept] = { sum: 0, count: 0 };
             deptStats[dept].sum += Number(d.rating);
@@ -801,17 +876,23 @@ async function exportDeptComparisonXLSX() {
         const data = Object.keys(deptStats).map(dept => ({
             "Department": dept,
             "Average Rating": (deptStats[dept].sum / deptStats[dept].count).toFixed(2),
-            "Total Feedbacks": deptStats[dept].count
+            "Total Feedbacks": deptStats[dept].count,
+            "Filter Year": fYear === 'all' ? 'All' : fYear,
+            "Filter Sem": fSem === 'all' ? 'All' : fSem
         }));
+
+        if (data.length === 0) return alert("No matching data.");
 
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Department Performance");
-        XLSX.writeFile(wb, "FMS_Dept_Performance.xlsx");
+        XLSX.utils.book_append_sheet(wb, ws, "Dept Performace");
+        XLSX.writeFile(wb, `FMS_Dept_Perf_Y${fYear}_S${fSem}.xlsx`);
 
     } catch (e) {
         console.error(e);
         alert("Export failed.");
+    } finally {
+        if (btn) btn.innerHTML = '<i class="ri-download-line"></i> Download Excel';
     }
 }
 

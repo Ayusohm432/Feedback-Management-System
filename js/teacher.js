@@ -378,63 +378,116 @@ async function exportTeacherReportPDF() {
     const doc = new jsPDF();
     const name = document.getElementById('t-name-display').innerText;
 
+    // Filter Context
+    const fYear = document.getElementById('exportFilterYear').value;
+    const fSem = document.getElementById('exportFilterSemester').value;
+    let filterText = (fYear === 'all' && fSem === 'all') ? "All Sessions" : `Filtered: Year ${fYear !== 'all' ? fYear : 'All'} / Sem ${fSem !== 'all' ? fSem : 'All'}`;
+
     // Header
     doc.setFontSize(18);
     doc.text(`Performance Report: ${name}`, 14, 20);
     doc.setFontSize(12);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 30);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 28);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(filterText, 14, 34);
+    doc.setTextColor(0);
 
     let yPos = 45;
 
-    // Check for Certificate Eligibility
-    const avgRating = parseFloat(document.getElementById('stat-avg-rating').innerText);
-    if (avgRating >= 4.5) {
-        // Gold Border/Background
-        doc.setDrawColor(255, 215, 0);
-        doc.setLineWidth(1);
-        doc.rect(10, 40, 190, 40);
+    // Fetch Filtered Stats (Calculate purely for this PDF)
+    try {
+        const uid = firebase.auth().currentUser.uid;
+        let query = db.collection('feedback').where('teacher_id', '==', uid);
+        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fSem !== 'all') query = query.where('semester', '==', fSem);
 
-        doc.setFontSize(22);
-        doc.setTextColor(218, 165, 32); // Gold
-        doc.text("Certificate of Excellence", 105, 55, { align: 'center' });
+        doc.text("Calculating performance metrics...", 14, yPos);
 
-        doc.setFontSize(14);
-        doc.setTextColor(0, 0, 0);
-        doc.text("For Outstanding Teaching Performance", 105, 65, { align: 'center' });
-        doc.text(`Average Rating: ${avgRating} / 5.0`, 105, 75, { align: 'center' });
+        const snap = await query.get();
+        let total = 0;
+        let sum = 0;
+        const subBreakdown = {};
 
-        yPos = 95;
-    } else {
-        doc.text(`Overall Average Rating: ${avgRating} / 5.0`, 14, yPos);
-        yPos += 15;
-    }
+        snap.forEach(d => {
+            const data = d.data();
+            total++;
+            sum += Number(data.rating);
+            const sub = data.subject || 'Unknown';
+            if (!subBreakdown[sub]) subBreakdown[sub] = { sum: 0, count: 0 };
+            subBreakdown[sub].sum += Number(data.rating);
+            subBreakdown[sub].count++;
+        });
 
-    doc.setFontSize(12);
-    doc.setTextColor(0);
+        const avgRating = total ? (sum / total).toFixed(2) : 0;
 
-    // Capture Charts
-    const charts = [
-        { id: 'subjectPerformanceChart', title: 'Subject Performance' },
-        { id: 'sessionComparisonChart', title: 'Session Analysis' },
-        { id: 'ratingDistributionChart', title: 'Rating Distribution' }
-    ];
+        // Clear Loading Text
+        doc.setFillColor(255, 255, 255);
+        doc.rect(10, 40, 100, 10, 'F');
 
-    for (let c of charts) {
-        const canvas = document.getElementById(c.id);
-        if (canvas) {
-            try {
-                if (yPos > 240) { doc.addPage(); yPos = 20; }
-                const img = canvas.toDataURL('image/png');
-                doc.addImage(img, 'PNG', 14, yPos, 180, 80); // Adjust size as needed
-                doc.text(c.title, 14, yPos - 5);
-                yPos += 95;
-            } catch (e) {
-                console.warn("Canvas export error:", e);
-            }
+        // --- Certificate Logic ---
+        // Only award certificate if High Rating AND Sufficient Volume (e.g. > 5 reviews) 
+        // AND if it represents a significant chunk (e.g. not just 1 filter result)
+        if (avgRating >= 4.5 && total >= 5) {
+            doc.setDrawColor(255, 215, 0);
+            doc.setLineWidth(1);
+            doc.rect(10, 40, 190, 40);
+
+            doc.setFontSize(22);
+            doc.setTextColor(218, 165, 32); // Gold
+            doc.text("Certificate of Excellence", 105, 55, { align: 'center' });
+
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text("For Outstanding Teaching Performance", 105, 65, { align: 'center' });
+            doc.text(`Average Rating: ${avgRating} / 5.0`, 105, 75, { align: 'center' });
+
+            yPos = 95;
+        } else {
+            doc.setFontSize(12);
+            doc.text(`Average Rating: ${avgRating} / 5.0`, 14, yPos);
+            doc.text(`Total Feedbacks: ${total}`, 14, yPos + 7);
+            yPos += 15;
         }
-    }
 
-    doc.save(`Performance_Report_${name.replace(/\s+/g, '_')}.pdf`);
+        // Subject Table
+        const rows = Object.keys(subBreakdown).map(s => [
+            s,
+            (subBreakdown[s].sum / subBreakdown[s].count).toFixed(2),
+            subBreakdown[s].count
+        ]);
+
+        if (rows.length > 0) {
+            doc.setFontSize(12);
+            doc.setTextColor(0);
+            doc.text("Subject Breakdown", 14, yPos);
+            doc.autoTable({
+                startY: yPos + 5,
+                head: [['Subject', 'Avg Rating', 'Count']],
+                body: rows
+            });
+            yPos = doc.lastAutoTable.finalY + 15;
+        } else {
+            doc.text("No data found.", 14, yPos);
+            yPos += 10;
+        }
+
+        // Skip Dashboard Charts if filtered, as they are static.
+        if (fYear === 'all' && fSem === 'all') {
+            // Optional: Include captured charts if needed
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(150);
+            doc.text("(Standard dashboard charts omitted for filtered custom report)", 14, yPos);
+        }
+
+        doc.save(`Performance_Report_${name.replace(/\s+/g, '_')}_${fYear}_${fSem}.pdf`);
+
+    } catch (e) {
+        console.error(e);
+        doc.text("Error generating report.", 14, yPos);
+        doc.save("Error.pdf");
+    }
 }
 
 async function exportMyFeedbackXLSX() {
@@ -444,9 +497,18 @@ async function exportMyFeedbackXLSX() {
 
     try {
         const uid = firebase.auth().currentUser.uid;
-        const snap = await db.collection('feedback').where('teacher_id', '==', uid).get();
 
-        if (snap.empty) { alert("No feedback data to export."); return; }
+        const fYear = document.getElementById('exportFilterYear').value;
+        const fSem = document.getElementById('exportFilterSemester').value;
+        const note = (fYear === 'all' && fSem === 'all') ? "" : `Filtered Year:${fYear} Sem:${fSem}`;
+
+        let query = db.collection('feedback').where('teacher_id', '==', uid);
+        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fSem !== 'all') query = query.where('semester', '==', fSem);
+
+        const snap = await query.get();
+
+        if (snap.empty) { alert("No feedback data matches criteria."); return; }
 
         const data = [];
         snap.forEach(doc => {
@@ -458,7 +520,8 @@ async function exportMyFeedbackXLSX() {
                 "Comments": d.comments || '',
                 "Year": d.year || '-',
                 "Semester": d.semester || '-',
-                "Date": d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : '-'
+                "Date": d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : '-',
+                "Context": note
             });
         });
 
@@ -468,7 +531,7 @@ async function exportMyFeedbackXLSX() {
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "My Feedback");
-        XLSX.writeFile(wb, "My_Feedback_History.xlsx");
+        XLSX.writeFile(wb, `My_Feedback_History_Y${fYear}_S${fSem}.xlsx`);
 
     } catch (e) {
         console.error(e);

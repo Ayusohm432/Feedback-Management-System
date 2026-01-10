@@ -762,88 +762,168 @@ async function exportDeptReportPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
 
+    // Filter Context
+    const fYear = document.getElementById('exportFilterYear').value;
+    const fSem = document.getElementById('exportFilterSemester').value;
+    let filterText = (fYear === 'all' && fSem === 'all') ? "All Sessions" : `Filtered: Year ${fYear !== 'all' ? fYear : 'All'} / Sem ${fSem !== 'all' ? fSem : 'All'}`;
+
     // Title
     doc.setFontSize(18);
     doc.text(`Department Report: ${document.getElementById('pNameDisplay').innerText}`, 14, 20);
     doc.setFontSize(12);
-    doc.text(`Active Session: ${document.getElementById('current-session-display').innerText.split(': ')[1]}`, 14, 30);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 37);
+    doc.text(`Active Session: ${document.getElementById('current-session-display').innerText.split(': ')[1]}`, 14, 28);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 34);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(filterText, 14, 40);
+    doc.setTextColor(0);
 
     let yPos = 50;
 
-    // Stats
-    const studs = document.getElementById('stat-students').innerText;
-    const teachs = document.getElementById('stat-teachers').innerText;
-    const fbs = document.getElementById('stat-feedback').innerText;
+    // Filters require fetching fresh data to calculate accurate stats for report
+    // If filters are 'all', we could use the stats on screen, but consistency is better.
+    doc.text("Processing data...", 14, yPos);
 
-    doc.text(`Students: ${studs} | Teachers: ${teachs} | Total Feedback: ${fbs}`, 14, yPos);
-    yPos += 15;
+    try {
+        let query = db.collection('feedback').where('department', '==', currentDeptId);
+        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fSem !== 'all') query = query.where('semester', '==', fSem);
 
-    // Capture Charts via Canvas
-    const charts = [
-        { id: 'deptSubjectChart', title: 'Subject Performance' },
-        { id: 'deptParticipationChart', title: 'Participation Rate' },
-        { id: 'deptTrendChart', title: 'Submission Trend' }
-    ];
+        const snap = await query.get();
+        let totalFb = snap.size;
+        let sumRating = 0;
 
-    for (let c of charts) {
-        const canvas = document.getElementById(c.id);
-        if (canvas) {
-            try {
-                if (yPos > 250) { doc.addPage(); yPos = 20; }
-                const img = canvas.toDataURL('image/png');
-                doc.addImage(img, 'PNG', 14, yPos, 180, 80);
-                doc.text(c.title, 14, yPos - 5);
-                yPos += 90;
-            } catch (e) {
-                console.warn("Canvas export error:", e);
+        const teacherStats = {}; // {tid: {sum, count, name}}
+
+        snap.forEach(d => {
+            const data = d.data();
+            sumRating += Number(data.rating);
+
+            if (!teacherStats[data.teacher_id]) teacherStats[data.teacher_id] = { sum: 0, count: 0 };
+            teacherStats[data.teacher_id].sum += Number(data.rating);
+            teacherStats[data.teacher_id].count++;
+        });
+
+        // Cover Loading
+        doc.setFillColor(255, 255, 255);
+        doc.rect(10, 45, 100, 10, 'F');
+
+        const studs = document.getElementById('stat-students').innerText;
+        const teachs = document.getElementById('stat-teachers').innerText;
+        doc.setFontSize(11);
+        doc.text(`Registered Students: ${studs} | Registered Teachers: ${teachs}`, 14, yPos);
+        doc.text(`Total ${filterText} Feedback: ${totalFb}`, 14, yPos + 7);
+        yPos += 15;
+
+        // Teacher Performance Table
+        const tRows = await Promise.all(Object.keys(teacherStats).map(async tid => {
+            // resolve name
+            let name = "Unknown";
+            const t = allMyTeachers.find(u => u.id === tid);
+            if (t) name = t.name;
+            else {
+                // fallback fetch if not in cache? unlikely if dept user mgmt works
+                name = tid.substr(0, 8) + '...';
             }
-        }
-    }
+            const avg = (teacherStats[tid].sum / teacherStats[tid].count).toFixed(2);
+            return [name, avg, teacherStats[tid].count];
+        }));
 
-    doc.save("Dept_Report.pdf");
+        if (tRows.length > 0) {
+            doc.text("Teacher Performance Summary", 14, yPos);
+            doc.autoTable({
+                startY: yPos + 5,
+                head: [['Teacher Name', 'Avg Rating', 'Feedback Count']],
+                body: tRows,
+            });
+            yPos = doc.lastAutoTable.finalY + 15;
+        } else {
+            doc.text("No feedback data for selected filters.", 14, yPos);
+            yPos += 15;
+        }
+
+        // Add Charts if space permits. 
+        // Note: The on-screen charts are "All data". If we want filtered charts, we'd need to re-render them hidden or warn user.
+        // We will skip screenshots of dashboard charts if filters are on, to avoid misleading data.
+        if (fYear === 'all' && fSem === 'all') {
+            const charts = [
+                { id: 'deptSubjectChart', title: 'Subject Performance (Overall)' },
+                { id: 'deptParticipationChart', title: 'Participation Rate (Overall)' }
+            ];
+            for (let c of charts) {
+                const canvas = document.getElementById(c.id);
+                if (canvas) {
+                    if (yPos > 230) { doc.addPage(); yPos = 20; }
+                    try {
+                        const img = canvas.toDataURL('image/png');
+                        doc.addImage(img, 'PNG', 14, yPos, 180, 80);
+                        doc.text(c.title, 14, yPos - 5);
+                        yPos += 95;
+                    } catch (e) { }
+                }
+            }
+        } else {
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text("(Charts omitted for filtered reports)", 14, yPos);
+        }
+
+        doc.save(`Dept_Report_Y${fYear}_S${fSem}.pdf`);
+
+    } catch (e) {
+        console.error(e);
+        doc.text("Error generating report.", 14, yPos + 10);
+        doc.save("Report_Error.pdf");
+    }
 }
 
 async function exportTeacherRatingsXLSX() {
     const btn = event.target ? event.target.closest('button') : null;
-    let originalText = '';
-    if (btn) { originalText = btn.innerHTML; btn.innerHTML = 'Calculating...'; }
+    if (btn) btn.innerText = "Exporting...";
 
     try {
-        // Fetch All Feedback for Dept
-        const snap = await db.collection('feedback').where('department', '==', currentDeptId).get();
-        const teacherStats = {};
+        const fYear = document.getElementById('exportFilterYear').value;
+        const fSem = document.getElementById('exportFilterSemester').value;
+        const note = (fYear === 'all' && fSem === 'all') ? "" : `Filtered Year:${fYear} Sem:${fSem}`;
 
-        snap.forEach(doc => {
-            const d = doc.data();
-            const tid = d.teacher_id;
-            if (!teacherStats[tid]) teacherStats[tid] = { sum: 0, count: 0 };
-            teacherStats[tid].sum += Number(d.rating);
-            teacherStats[tid].count++;
+        // Fetch
+        let query = db.collection('feedback').where('department', '==', currentDeptId);
+        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fSem !== 'all') query = query.where('semester', '==', fSem);
+
+        const snap = await query.get();
+        if (snap.empty) { alert("No data."); return; }
+
+        const teacherStats = {};
+        snap.forEach(d => {
+            const data = d.data();
+            if (!teacherStats[data.teacher_id]) teacherStats[data.teacher_id] = { sum: 0, count: 0 };
+            teacherStats[data.teacher_id].sum += Number(data.rating);
+            teacherStats[data.teacher_id].count++;
         });
 
-        // Map to Teachers list
-        const rows = allMyTeachers.map(t => {
-            const stats = teacherStats[t.id] || { sum: 0, count: 0 };
-            const avg = stats.count ? (stats.sum / stats.count).toFixed(2) : '0.00';
+        const data = Object.keys(teacherStats).map(tid => {
+            const t = allMyTeachers.find(u => u.id === tid);
             return {
-                "Teacher Name": t.name,
-                "Email": t.email,
-                "Average Rating": avg,
-                "Total Reviews": stats.count
+                "Teacher Name": t ? t.name : tid,
+                "Email": t ? t.email : '-',
+                "Average Rating": (teacherStats[tid].sum / teacherStats[tid].count).toFixed(2),
+                "Feedback Count": teacherStats[tid].count,
+                "Filter Context": note
             };
         });
 
-        const ws = XLSX.utils.json_to_sheet(rows);
+        const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Teacher Ratings");
-        XLSX.writeFile(wb, "Dept_Teacher_Ratings.xlsx");
+        XLSX.writeFile(wb, `Teacher_Ratings_${fYear}_${fSem}.xlsx`);
 
     } catch (e) {
         console.error(e);
-        alert("Export failed.");
+        alert("Export Error");
     } finally {
-        if (btn) btn.innerHTML = originalText;
+        if (btn) btn.innerHTML = '<i class="ri-download-line"></i> Download Excel';
     }
 }
 
