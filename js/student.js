@@ -378,16 +378,18 @@ function loadHistory() {
             docs.push(data);
             if (data.teacher_id && data.year && data.semester && data.session && data.subject) {
                 // STANDARD KEY Generation from DB Data
-                const key = getFeedbackKey(data.teacher_id, data.year, data.semester, data.session, data.subject);
+                // Fix: Use data.degree instead of data.year as 2nd arg
+                const key = getFeedbackKey(data.teacher_id, data.degree || 'B.Tech', data.semester, data.session, data.subject);
                 submittedSessions.add(key);
             } else if (data.teacher_id && data.session && data.subject) {
                 // Fallback for old data without year/sem explicitly stored? 
                 // If we assume old data is invalid or we just try to map it.
                 // Ideally all data has year/sem. If not, we might miss duplicates, but for new data it works.
                 // Let's try to be safe.
-                const y = data.year || (currentUserDoc.year || '1').toString();
+                // Fallback for old data or missing fields
+                const d = data.degree || currentUserDoc.degree || 'B.Tech';
                 const s = data.semester || (currentUserDoc.semester || '1').toString();
-                const key = getFeedbackKey(data.teacher_id, y, s, data.session, data.subject);
+                const key = getFeedbackKey(data.teacher_id, d, s, data.session, data.subject);
                 submittedSessions.add(key);
             }
         });
