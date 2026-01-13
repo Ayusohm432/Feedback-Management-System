@@ -420,7 +420,47 @@ async function handleAddSingleDept(e) {
 function loadApprovals() { const listContainer = document.getElementById('approvals-list-container'); listContainer.innerHTML = 'Loading...'; db.collection('users').where('status', '==', 'pending').onSnapshot(snap => { allPendingUsers = []; snap.forEach(doc => allPendingUsers.push({ id: doc.id, ...doc.data() })); renderApprovals('all'); }); }
 function filterApprovals(role, tabEl) { document.querySelectorAll('.sub-tab').forEach(el => el.classList.remove('active')); tabEl.classList.add('active'); renderApprovals(role); }
 function renderApprovals(filterRole) { const container = document.getElementById('approvals-list-container'); const filtered = filterRole === 'all' ? allPendingUsers : allPendingUsers.filter(u => u.role === filterRole); if (filtered.length === 0) { container.innerHTML = `<p style="padding:1rem;">No pending requests for ${filterRole}.</p>`; return; } let html = '<table class="w-full"><thead><tr><th>Name</th><th>Role</th><th>Info</th><th>Actions</th></tr></thead><tbody>'; filtered.forEach(u => { html += `<tr><td><strong>${u.name}</strong><br><small>${u.email}</small></td><td><span class="pill pill-pending">${u.role.toUpperCase()}</span></td><td>${u.role === 'student' ? u.regNum : (u.deptId || 'N/A')}</td><td><button class="btn btn-primary" onclick="approveUser('${u.id}')">Approve</button> <button class="btn btn-outline" onclick="rejectUser('${u.id}')">Reject</button></td></tr>`; }); html += '</tbody></table>'; container.innerHTML = html; }
-window.approveUser = async (uid) => { try { await db.collection('users').doc(uid).update({ status: 'approved' }); } catch (e) { console.error(e); } };
+window.approveUser = async (uid) => {
+    try {
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (!userDoc.exists) return;
+        const u = userDoc.data();
+
+        if (u.role === 'student' && u.department && u.session && u.degree) {
+            // Check Department for Session
+            const deptId = u.department;
+            // Find Department User Doc (Query by deptId field or iterate? Depts are Users with role='department' and deptId=...)
+            // Actually, we need the doc ID of the department user to update it.
+            // Let's query:
+            const deptSnap = await db.collection('users').where('role', '==', 'department').where('deptId', '==', deptId).limit(1).get();
+
+            if (!deptSnap.empty) {
+                const deptDocRef = deptSnap.docs[0].ref;
+                const deptData = deptSnap.docs[0].data();
+                let sessions = deptData.sessionsList || [];
+
+                // Check if session exists
+                // We match Name AND Degree.
+                const exists = sessions.find(s => s.name === u.session && s.degree === u.degree);
+
+                if (!exists) {
+                    // Auto-create session
+                    console.log(`Auto-creating session ${u.session} (${u.degree}) for Dept ${deptId}`);
+                    sessions.push({
+                        name: u.session,
+                        degree: u.degree,
+                        isActive: false // Default to Inactive? Or Active? User said "so that student can be directly linked". 
+                        // If we just add it to list, they are linked by string. 
+                    });
+                    await deptDocRef.update({ sessionsList: sessions });
+                }
+            }
+        }
+
+        await db.collection('users').doc(uid).update({ status: 'approved' });
+        loadApprovals(); // Refresh UI
+    } catch (e) { console.error(e); alert("Error approving user: " + e.message); }
+};
 window.rejectUser = async (uid) => { if (!confirm("Permantently remove this request?")) return; try { await db.collection('users').doc(uid).delete(); } catch (e) { console.error(e); } };
 async function loadProfile() {
     const user = firebase.auth().currentUser;

@@ -567,7 +567,35 @@ async function createUserInSecondaryApp(email, password) {
     catch (e) { await app.delete(); throw e; }
 }
 
-window.approveUser = async (uid) => { await db.collection('users').doc(uid).update({ status: 'approved' }); }
+window.approveUser = async (uid) => {
+    try {
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (!userDoc.exists) return;
+        const u = userDoc.data();
+
+        if (u.role === 'student' && u.department && u.session && u.degree) {
+            // We are in Department Dashboard, so 'currentDeptDoc' and 'currentDeptId' should be available globally or we fetch.
+            // Using logic similar to admin.js for safety, or relying on currentDeptDoc if available?
+            // currentDeptDoc is loaded in Department Dashboard.
+            if (currentDeptDoc && currentDeptId === u.department) {
+                let sessions = currentDeptDoc.sessionsList || [];
+                const exists = sessions.find(s => s.name === u.session && s.degree === u.degree);
+
+                if (!exists) {
+                    sessions.push({
+                        name: u.session,
+                        degree: u.degree,
+                        isActive: false
+                    });
+                    // Update Local and DB
+                    currentDeptDoc.sessionsList = sessions; // Optimistic update
+                    await db.collection('users').doc(firebase.auth().currentUser.uid).update({ sessionsList: sessions });
+                }
+            }
+        }
+        await db.collection('users').doc(uid).update({ status: 'approved' });
+    } catch (e) { console.error(e); alert("Error: " + e.message); }
+}
 window.rejectUser = async (uid) => { if (confirm("Reject?")) await db.collection('users').doc(uid).delete(); }
 window.toggleTeacherReview = async (tid, val) => { await db.collection('users').doc(tid).update({ isReviewOpen: val }); }
 

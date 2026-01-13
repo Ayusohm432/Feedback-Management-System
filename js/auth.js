@@ -75,27 +75,33 @@ function renderDynamicFields(role) {
         <label>Registration Number</label>
         <input type="text" id="regId" required placeholder="Unique Student ID">
       </div>
-      <div class="form-group">
-        <label>Department</label>
-        <select id="regDept" required class="form-control">
-            <option value="" disabled selected>Select Department</option>
-            <option value="101">CE (101)</option>
-            <option value="103">ME (103)</option>
-            <option value="104">EEE (104)</option>
-            <option value="105">CSE (105)</option>
-            <option value="106">ECE (106)</option>
-        </select>
-      </div>
+      
       <div style="display:flex; gap:1rem;">
           <div class="form-group" style="flex:1;">
-            <label>Year</label>
-            <select id="regYear" required class="form-control">
+            <label>Department</label>
+            <select id="regDept" required class="form-control">
                 <option value="" disabled selected>Select</option>
-                <option value="1">1st Year</option>
-                <option value="2">2nd Year</option>
-                <option value="3">3rd Year</option>
-                <option value="4">4th Year</option>
+                <option value="101">CE (101)</option>
+                <option value="103">ME (103)</option>
+                <option value="104">EEE (104)</option>
+                <option value="105">CSE (105)</option>
+                <option value="106">ECE (106)</option>
             </select>
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>Degree</label>
+            <select id="regDegree" required class="form-control">
+                <option value="" disabled selected>Select</option>
+                <option value="B.Tech">B.Tech</option>
+                <option value="M.Tech">M.Tech</option>
+            </select>
+          </div>
+      </div>
+
+      <div style="display:flex; gap:1rem;">
+          <div class="form-group" style="flex:1;">
+            <label>Session</label>
+             <input type="text" id="regSession" required placeholder="e.g. 2023-27">
           </div>
           <div class="form-group" style="flex:1;">
             <label>Semester</label>
@@ -103,6 +109,12 @@ function renderDynamicFields(role) {
                 <option value="" disabled selected>Select</option>
                 <option value="1">Sem 1</option>
                 <option value="2">Sem 2</option>
+                <option value="3">Sem 3</option>
+                <option value="4">Sem 4</option>
+                <option value="5">Sem 5</option>
+                <option value="6">Sem 6</option>
+                <option value="7">Sem 7</option>
+                <option value="8">Sem 8</option>
             </select>
           </div>
       </div>
@@ -178,6 +190,12 @@ function validateRegistration(role) {
         const dept = document.getElementById('regDept').value;
         // Reg No: 11 digits, numbers only
         if (!/^\d{11}$/.test(id)) throw new Error("Registration Number must be exactly 11 digits.");
+
+        // Session Validation
+        const session = document.getElementById('regSession').value;
+        if (!/^\d{4}-\d{2}$/.test(session)) {
+            throw new Error("Session format must be 'YYYY-YY' (e.g. 2023-27).");
+        }
     }
 
     if (role === 'department') {
@@ -237,12 +255,11 @@ async function handleRegisterForm(e) {
         if (selectedRole === 'student') {
             profile.regNum = document.getElementById('regId').value;
             profile.department = document.getElementById('regDept').value;
-            profile.year = document.getElementById('regYear').value;
+            profile.department = document.getElementById('regDept').value;
+            profile.degree = document.getElementById('regDegree').value;
             profile.semester = document.getElementById('regSem').value;
-            // Default Session? Maybe leave blank or derive?
-            // User doesn't select session in public form usually? 
-            // We can leave session blank or 'Pending Allocation' until approval/dept assigns it.
-            profile.session = 'Pending';
+            profile.session = document.getElementById('regSession').value;
+            profile.year = Math.ceil((profile.semester || 1) / 2).toString(); // Derived for compat
         } else if (selectedRole === 'department') {
             profile.deptId = document.getElementById('regId').value;
             const sIn = document.getElementById('regSession').value;
