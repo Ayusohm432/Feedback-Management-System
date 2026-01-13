@@ -52,11 +52,11 @@ function updateLoginFields(role) {
 
     if (role === 'student') {
         lbl.innerText = "Registration Number";
-        inp.placeholder = "e.g. 2023001";
+        inp.placeholder = "e.g. YYXXX110XXX";
         inp.type = "text";
     } else if (role === 'department') {
         lbl.innerText = "Department ID";
-        inp.placeholder = "e.g. CSE-01";
+        inp.placeholder = "e.g. 105";
         inp.type = "text";
     } else {
         lbl.innerText = "Email Address";

@@ -213,7 +213,7 @@ function updateStudentDeptDropdown(students) {
 }
 function filterStudentList() {
     const filterDept = document.getElementById('studentDeptFilter').value;
-    const filterYear = document.getElementById('studentYearFilter').value;
+    const filterDegree = document.getElementById('studentDegreeFilter').value;
     const filterSem = document.getElementById('studentSemFilter').value;
     const container = document.getElementById('students-table-container');
 
@@ -222,8 +222,8 @@ function filterStudentList() {
     if (filterDept !== 'all') {
         filtered = filtered.filter(s => (s.department || 'General') === filterDept);
     }
-    if (filterYear !== 'all') {
-        filtered = filtered.filter(s => (s.year || '1').toString() === filterYear);
+    if (filterDegree !== 'all') {
+        filtered = filtered.filter(s => (s.degree || 'B.Tech') === filterDegree);
     }
     if (filterSem !== 'all') {
         filtered = filtered.filter(s => (s.semester || '1').toString() === filterSem);
@@ -248,7 +248,7 @@ function filterTeacherList() {
 function renderUserTable(users, role, container) {
     if (users.length === 0) { container.innerHTML = "No users found."; return; }
     let headers = [];
-    if (role === 'student') headers = ['<input type="checkbox" onchange="toggleAllStudents(this)">', 'Name', 'Email', 'Reg No', 'Dept', 'Year/Sem', 'Session'];
+    if (role === 'student') headers = ['<input type="checkbox" onchange="toggleAllStudents(this)">', 'Name', 'Email', 'Reg No', 'Dept', 'Degree - Sem', 'Session'];
     else headers = ['Name', 'Email'];
 
     if (role === 'department') headers.push('Dept ID', 'Name', 'Session');
@@ -256,6 +256,8 @@ function renderUserTable(users, role, container) {
 
     let html = `<table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
     users.forEach(u => {
+        const degreeInfo = role === 'student' ? `${u.degree || 'B.Tech'} - S${u.semester || '1'}` : '';
+
         html += `<tr>
             ${role === 'student' ? `
                 <td><input type="checkbox" class="student-checkbox" value="${u.id}"></td>
@@ -263,7 +265,7 @@ function renderUserTable(users, role, container) {
                 <td>${u.email}</td>
                 <td>${u.regNum || '-'}</td>
                 <td>${u.department || 'General'}</td>
-                <td>Y${u.year || '1'}-S${u.semester || '1'}</td>
+                <td>${degreeInfo}</td>
                 <td>${u.session || '-'}</td>` : `
                 <td>${u.name}</td>
                 <td>${u.email}</td>
@@ -309,24 +311,35 @@ async function handleAddSingleStudent(e) {
 
     const session = document.getElementById('addSession').value;
     const pass = document.getElementById('addPassword').value;
-    const year = document.getElementById('addYear').value;
+    const degree = document.getElementById('addDegree').value;
     const semester = document.getElementById('addSemester').value;
     const email = `${reg}@student.fms.local`;
 
     try {
         // Validation
+        // Validation
         const vReg = VALIDATORS.regNum(reg); if (vReg !== true) throw new Error(vReg);
         const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
         const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
+        // Check Duplicates
+        const dupReg = await db.collection('users').where('regNum', '==', reg).get();
+        if (!dupReg.empty) throw new Error("Student with this Register Number already exists.");
+
+        const dupEmail = await db.collection('users').where('email', '==', email).get();
+        if (!dupEmail.empty) throw new Error("User with this Email already exists.");
 
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid: uid, name: name, email: email, role: 'student', status: 'approved',
             regNum: reg, department: dept, session: session,
-            year: year || '1', semester: semester || '1',
+            degree: degree, semester: semester || '1',
+            year: Math.ceil((semester || 1) / 2).toString(), // Compat
             createdAt: new Date()
         });
         alert(`Student Created!`); e.target.reset();
+        // Reset Semester dropdown
+        document.getElementById('addSemester').innerHTML = '<option value="" disabled selected>Sem</option>';
     } catch (err) { alert("Error: " + err.message); }
 }
 
@@ -358,6 +371,10 @@ async function handleAddSingleTeacher(e) {
     try {
         const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
 
+        // Check Duplicate
+        const dupEmail = await db.collection('users').where('email', '==', email).get();
+        if (!dupEmail.empty) throw new Error("Teacher with this Email already exists.");
+
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid: uid, name: name, email: email, role: 'teacher', status: 'approved',
@@ -382,7 +399,15 @@ async function handleAddSingleDept(e) {
         const vCode = VALIDATORS.deptCode(id); if (vCode !== true) throw new Error(vCode);
         const vName = VALIDATORS.deptEnum(name); if (vName !== true) throw new Error(vName);
         const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
+
         const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
+        // Check Duplicate
+        const dupId = await db.collection('users').where('deptId', '==', id).get();
+        if (!dupId.empty) throw new Error("Department with this ID already exists.");
+
+        const dupEmail = await db.collection('users').where('email', '==', email).get();
+        if (!dupEmail.empty) throw new Error("Department with this Email already exists.");
 
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
@@ -465,7 +490,7 @@ async function loadFeedbackExplorer() {
     const filterRating = document.getElementById('fbFilterRating').value;
     const filterDept = document.getElementById('fbFilterDept').value;
     const filterTeacher = document.getElementById('fbFilterTeacher').value;
-    const filterYear = document.getElementById('fbFilterYear') ? document.getElementById('fbFilterYear').value : 'all';
+    const filterDegree = document.getElementById('fbFilterDegree') ? document.getElementById('fbFilterDegree').value : 'all';
     const filterSem = document.getElementById('fbFilterSemester') ? document.getElementById('fbFilterSemester').value : 'all';
     const container = document.getElementById('feedback-explorer-container');
     container.innerHTML = '<p class="text-gray-500">Loading filters...</p>';
@@ -491,8 +516,8 @@ async function loadFeedbackExplorer() {
 
             if (filterRating === 'low' && data.rating >= 3) show = false;
             if (filterRating === 'high' && data.rating <= 3) show = false;
-            if (filterYear !== 'all' && (data.year || '1') !== filterYear) show = false;
-            if (filterSem !== 'all' && (data.semester || '1') !== filterSem) show = false;
+            if (filterDegree !== 'all' && (data.degree || 'B.Tech') !== filterDegree) show = false;
+            if (filterSem !== 'all' && (data.semester || '1').toString() !== filterSem) show = false;
 
             // 2. Department
             if (filterDept !== 'all') {
@@ -541,7 +566,7 @@ async function loadFeedbackExplorer() {
                         </div>
                         <div class="feedback-footer">
                             <span><i class="ri-calendar-line"></i> ${date}</span>
-                            <span>${data.session || '-'} | Y${data.year || '-'}</span>
+                            <span>${data.session || '-'} | ${data.degree || 'B.Tech'} S${data.semester || '-'}</span>
                         </div>
                     </div>
                 `;
@@ -593,12 +618,12 @@ async function loadAssignedSubjects(teacherId) {
                 list.innerHTML = '<p style="padding:1rem; color:#999; text-align:center;">No subjects assigned.</p>';
                 return;
             }
-            let html = '<table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#f0f0f0; text-align:left;"><th style="padding:0.5rem;">Subject</th><th style="padding:0.5rem;">Year/Sem</th><th style="padding:0.5rem;">Status</th><th style="padding:0.5rem;">Action</th></tr></thead><tbody>';
+            let html = '<table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#f0f0f0; text-align:left;"><th style="padding:0.5rem;">Subject</th>                        <th style="padding:0.5rem;">Degree - Sem</th><th style="padding:0.5rem;">Status</th><th style="padding:0.5rem;">Action</th></tr></thead><tbody>';
             subjects.forEach((s, index) => {
                 html += `
                     <tr style="border-bottom:1px solid #eee;">
                         <td style="padding:0.5rem;">${s.name}</td>
-                        <td style="padding:0.5rem;">Y${s.year}-S${s.semester}</td>
+                        <td style="padding:0.5rem;">${s.degree || 'B.Tech'} - S${s.semester}</td>
                         <td style="padding:0.5rem;">
                             <label class="switch" style="transform:scale(0.8);">
                                 <input type="checkbox" ${s.isOpen ? 'checked' : ''} onchange="toggleSubjectStatus('${teacherId}', ${index}, this.checked)">
@@ -621,7 +646,7 @@ async function handleAddSubject(e) {
     e.preventDefault();
     if (!currentManageTeacherId) return;
     const name = document.getElementById('assignSubName').value;
-    const year = document.getElementById('assignSubYear').value;
+    const degree = document.getElementById('assignSubDegree').value;
     const sem = document.getElementById('assignSubSem').value;
 
     try {
@@ -631,7 +656,7 @@ async function handleAddSubject(e) {
 
         subjects.push({
             name: name,
-            year: year,
+            degree: degree,
             semester: sem,
             isOpen: true // Default open
         });
@@ -718,13 +743,14 @@ async function processBatchUpdate(ids, direction) {
             const student = allStudents.find(s => s.id === uid);
             if (!student) continue;
 
-            const currentYear = parseInt(student.year) || 1;
             const currentSem = parseInt(student.semester) || 1;
+            const degree = student.degree || 'B.Tech';
 
-            const { newYear, newSem } = calculateNewLevel(currentYear, currentSem, direction);
+            const { newYear, newSem } = calculateNewLevel(degree, currentSem, direction);
 
             if (newYear !== currentYear || newSem !== currentSem) {
                 await db.collection('users').doc(uid).update({
+                    degree: degree, // ensure persistence or update if needed
                     year: newYear.toString(),
                     semester: newSem.toString()
                 });
@@ -739,34 +765,31 @@ async function processBatchUpdate(ids, direction) {
     alert(`Operation Complete.\nUpdated: ${successCount}\nFailed: ${errorCount}`);
 }
 
-function calculateNewLevel(year, sem, direction) {
-    // Logic: 
-    // Promote (+1): 1-1 -> 1-2 -> 2-3 -> 2-4 -> 3-5 -> 3-6 -> 4-7 -> 4-8 -> Graduated?
-    // Wait, typical engineering: Year 1 (Sem 1, 2), Year 2 (Sem 3, 4), Year 3 (Sem 5, 6), Year 4 (Sem 7, 8)
-    // So Sem is the driver.
-    // Sem 1 -> 2 (Same Year 1)
-    // Sem 2 -> 3 (Year changes to 2)
-
-    let newSem = sem + direction;
-    let newYear = year;
+function calculateNewLevel(degree, sem, direction) {
+    const semInt = parseInt(sem);
+    let newSem = semInt + direction;
+    const maxSem = SEMESTERS[degree] || 8;
 
     if (direction > 0) { // Promoting
-        // If New Sem is Odd (e.g., 3, 5, 7), it means we just finished an Even sem, so Year increases
-        // Example: Was Sem 2. New Sem 3. Year was 1. Now Year 2.
-        // Formula: Year = Math.ceil(newSem / 2)
-        newYear = Math.ceil(newSem / 2);
-    } else { // Demoting
-        if (newSem < 1) {
-            newSem = 1;
-            newYear = 1;
-        } else {
-            newYear = Math.ceil(newSem / 2);
+        if (newSem > maxSem) {
+            // Graduated?
+            // Return max for now to indicate end? Or handle in caller
+            // Caller update: year = ceil(newSem/2)
+            // If newSem > maxSem, caller should probably not update or mark as graduated.
+            // But function signature is just returning newYear/newSem.
+            // Let's return newSem. Caller must check limit for Graduation.
+            // Actually, let's just cap it or return a flag?
+            // The caller uses: year: newYear, semester: newSem.
+            // Let's let it go up to maxSem + 1 (Graduated)?
+            // For now, let's clamp to maxSem and rely on manual graduation or allow overflow?
+            // "Promote all" usually just bumps sem.
         }
+    } else { // Demoting
+        if (newSem < 1) newSem = 1;
     }
 
-    // Safety caps
-    if (newYear > 4) newYear = 4; // Assuming 4 year course, or let it go to 5? Let's cap at 4-8 for now or maybe 5-9? 
-    // Actually, let's just restrict logic to Math.ceil. If they go to Sem 9, Year is 5.
+    // Calculate Year derived from Sem
+    const newYear = Math.ceil(newSem / 2);
 
     return { newYear, newSem };
 }
@@ -781,11 +804,11 @@ async function exportSystemSummaryPDF() {
     const doc = new jsPDF();
 
     // Get Filter Context
-    const fYear = document.getElementById('exportFilterYear').value;
+    const fDegree = document.getElementById('exportFilterDegree').value;
     const fSem = document.getElementById('exportFilterSemester').value;
-    let filterText = "All Years, All Semesters";
-    if (fYear !== 'all' || fSem !== 'all') {
-        filterText = `Year: ${fYear === 'all' ? 'All' : fYear} | Sem: ${fSem === 'all' ? 'All' : fSem}`;
+    let filterText = "All Degrees, All Semesters";
+    if (fDegree !== 'all' || fSem !== 'all') {
+        filterText = `Degree: ${fDegree === 'all' ? 'All' : fDegree} | Sem: ${fSem === 'all' ? 'All' : fSem}`;
     }
 
     // Title

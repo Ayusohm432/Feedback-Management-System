@@ -337,7 +337,12 @@
                     <div class="card">
                         <h3>Manage Academic Sessions</h3>
                         <div style="display:flex; gap:1rem; margin:1rem 0;">
-                            <input type="text" id="newSessionName" placeholder="New Session (e.g. 2025-EVEN)"
+                            <select id="newSessionDegree"
+                                style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                <option value="B.Tech">B.Tech</option>
+                                <option value="M.Tech">M.Tech</option>
+                            </select>
+                            <input type="text" id="newSessionName" placeholder="New Session (e.g. 2023-27)"
                                 style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                             <button class="btn btn-primary" onclick="createNewSession()">Create & Set Active</button>
                         </div>
@@ -387,19 +392,24 @@
                                 style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <option value="all">All Teachers</option>
                             </select>
-                            <select id="fbFilterYear" onchange="loadDeptFeedback()"
+                            <select id="fbFilterDegree"
+                                onchange="updateSemesterOptions('fbFilterDegree', 'fbFilterSemester', true); loadDeptFeedback()"
                                 style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
-                                <option value="all">All Years</option>
-                                <option value="1">1st Year</option>
-                                <option value="2">2nd Year</option>
-                                <option value="3">3rd Year</option>
-                                <option value="4">4th Year</option>
+                                <option value="all">All Degrees</option>
+                                <option value="B.Tech">B.Tech</option>
+                                <option value="M.Tech">M.Tech</option>
                             </select>
                             <select id="fbFilterSemester" onchange="loadDeptFeedback()"
                                 style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <option value="all">All Semesters</option>
                                 <option value="1">Sem 1</option>
                                 <option value="2">Sem 2</option>
+                                <option value="3">Sem 3</option>
+                                <option value="4">Sem 4</option>
+                                <option value="5">Sem 5</option>
+                                <option value="6">Sem 6</option>
+                                <option value="7">Sem 7</option>
+                                <option value="8">Sem 8</option>
                             </select>
                             <select id="fbFilterRating" onchange="loadDeptFeedback()"
                                 style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
@@ -441,19 +451,24 @@
                                 <input type="text" id="sName" placeholder="Name" required
                                     style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <div style="display:flex; gap:0.5rem;">
-                                    <select id="sYear" required
+                                    <select id="sDegree" required
+                                        onchange="updateSemesterOptions('sDegree', 'sSemester')"
                                         style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
-                                        <option value="" disabled selected>Year</option>
-                                        <option value="1">1st Year</option>
-                                        <option value="2">2nd Year</option>
-                                        <option value="3">3rd Year</option>
-                                        <option value="4">4th Year</option>
+                                        <option value="" disabled selected>Degree</option>
+                                        <option value="B.Tech">B.Tech</option>
+                                        <option value="M.Tech">M.Tech</option>
                                     </select>
                                     <select id="sSemester" required
                                         style="flex:1; padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                         <option value="" disabled selected>Sem</option>
                                         <option value="1">Sem 1</option>
                                         <option value="2">Sem 2</option>
+                                        <option value="3">Sem 3</option>
+                                        <option value="4">Sem 4</option>
+                                        <option value="5">Sem 5</option>
+                                        <option value="6">Sem 6</option>
+                                        <option value="7">Sem 7</option>
+                                        <option value="8">Sem 8</option>
                                     </select>
                                 </div>
                                 <input type="text" id="sSession" placeholder="Session (Auto-filled)" readonly
@@ -478,19 +493,24 @@
                             style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
                             <h3 style="margin:0;">Registered Students</h3>
                             <div id="dept-student-actions" style="display:flex; gap:0.5rem; align-items:center;">
-                                <select id="deptStudentYearFilter" onchange="filterDeptStudentList()"
+                                <select id="deptStudentDegreeFilter"
+                                    onchange="updateSemesterOptions('deptStudentDegreeFilter', 'deptStudentSemFilter', true); filterDeptStudentList()"
                                     style="padding:0.4rem; border:1px solid #ddd; border-radius:4px; font-size:0.9em;">
-                                    <option value="all">Year</option>
-                                    <option value="1">1</option>
-                                    <option value="2">2</option>
-                                    <option value="3">3</option>
-                                    <option value="4">4</option>
+                                    <option value="all">Degree</option>
+                                    <option value="B.Tech">B.Tech</option>
+                                    <option value="M.Tech">M.Tech</option>
                                 </select>
                                 <select id="deptStudentSemFilter" onchange="filterDeptStudentList()"
                                     style="padding:0.4rem; border:1px solid #ddd; border-radius:4px; font-size:0.9em;">
                                     <option value="all">Sem</option>
                                     <option value="1">1</option>
                                     <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
                                 </select>
                                 <button class="btn btn-sm btn-outline" onclick="promoteSelectedStudents()"
                                     title="Promote Selected"><i class="ri-arrow-up-double-line"></i> Promote
@@ -542,19 +562,24 @@
                         <h3><i class="ri-filter-3-line"></i> Report Filters</h3>
                         <div style="display:flex; gap:1rem; margin-top:1rem; flex-wrap:wrap; align-items:center;">
                             <label style="font-weight:500; font-size:0.9em; color:#666;">Filter Data By:</label>
-                            <select id="exportFilterYear"
+                            <select id="exportFilterDegree"
+                                onchange="updateSemesterOptions('exportFilterDegree', 'exportFilterSemester', true)"
                                 style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
-                                <option value="all">All Years</option>
-                                <option value="1">1st Year</option>
-                                <option value="2">2nd Year</option>
-                                <option value="3">3rd Year</option>
-                                <option value="4">4th Year</option>
+                                <option value="all">All Degrees</option>
+                                <option value="B.Tech">B.Tech</option>
+                                <option value="M.Tech">M.Tech</option>
                             </select>
                             <select id="exportFilterSemester"
                                 style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <option value="all">All Semesters</option>
                                 <option value="1">Sem 1</option>
                                 <option value="2">Sem 2</option>
+                                <option value="3">Sem 3</option>
+                                <option value="4">Sem 4</option>
+                                <option value="5">Sem 5</option>
+                                <option value="6">Sem 6</option>
+                                <option value="7">Sem 7</option>
+                                <option value="8">Sem 8</option>
                             </select>
                             <span style="font-size:0.85em; color:#999; margin-left:auto;">*Filters apply to all exports
                                 below</span>
@@ -664,6 +689,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="js/firebase.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/common.js"></script>
     <script src="js/department.js"></script>
     <script>
         checkAuth('department');
@@ -689,13 +715,12 @@
                             style="padding:0.4rem; width:100%; border:1px solid #ddd; border-radius:4px;">
                     </div>
                     <div>
-                        <label style="font-size:0.8em; color:#666;">Year</label>
-                        <select id="assignSubYear" required
+                        <label style="font-size:0.8em; color:#666;">Degree</label>
+                        <select id="assignSubDegree" required
+                            onchange="updateSemesterOptions('assignSubDegree', 'assignSubSem')"
                             style="padding:0.4rem; width:100%; border:1px solid #ddd; border-radius:4px;">
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
+                            <option value="B.Tech">B.Tech</option>
+                            <option value="M.Tech">M.Tech</option>
                         </select>
                     </div>
                     <div>
@@ -704,6 +729,12 @@
                             style="padding:0.4rem; width:100%; border:1px solid #ddd; border-radius:4px;">
                             <option value="1">1</option>
                             <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
                         </select>
                     </div>
                     <button class="btn btn-primary" style="padding:0.5rem 1rem;"><i class="ri-add-line"></i></button>

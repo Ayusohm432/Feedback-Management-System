@@ -82,7 +82,7 @@ function loadMySubjects() {
          <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:0.75rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
             <div>
                 <div style="font-weight:600; font-size:0.95em;">${s.name}</div>
-                <div style="font-size:0.8em; color:#666;">Year ${s.year} • Sem ${s.semester}</div>
+                <div style="font-size:0.8em; color:#666;">${s.degree || 'B.Tech'} • Sem ${s.semester}</div>
             </div>
             <div style="font-size:0.75em; padding:0.2rem 0.5rem; border-radius:4px; ${s.isOpen ? 'background:#dcfce7; color:#16a34a;' : 'background:#fee2e2; color:#ef4444;'}">
                 ${s.isOpen ? 'Open' : 'Closed'}
@@ -161,7 +161,7 @@ async function loadTeacherFeedback() {
         const filterRating = document.getElementById('tfFilterRating') ? document.getElementById('tfFilterRating').value : 'all';
         const filterSession = sessionSelect ? sessionSelect.value : 'all';
         const filterSubject = subjectSelect ? subjectSelect.value : 'all';
-        const filterYear = document.getElementById('tfFilterYear') ? document.getElementById('tfFilterYear').value : 'all';
+        const filterDegree = document.getElementById('tfFilterDegree') ? document.getElementById('tfFilterDegree').value : 'all';
         const filterSemester = document.getElementById('tfFilterSemester') ? document.getElementById('tfFilterSemester').value : 'all';
 
         let html = '';
@@ -174,8 +174,8 @@ async function loadTeacherFeedback() {
             if (filterRating !== 'all' && d.rating.toString() !== filterRating) return;
             if (filterSession !== 'all' && d.session !== filterSession) return;
             if (filterSubject !== 'all' && d.subject !== filterSubject) return;
-            if (filterYear !== 'all' && (d.year || '1') !== filterYear) return;
-            if (filterSemester !== 'all' && (d.semester || '1') !== filterSemester) return;
+            if (filterDegree !== 'all' && (d.degree || 'B.Tech') !== filterDegree) return;
+            if (filterSemester !== 'all' && (d.semester || '1').toString() !== filterSemester) return;
 
             const date = d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : 'N/A';
 
@@ -201,7 +201,7 @@ async function loadTeacherFeedback() {
                 </div>
                 <div class="feedback-footer">
                     <span><i class="ri-calendar-line"></i> ${date}</span>
-                    <span>${d.session || '-'} | Y${d.year || '-'}</span>
+                    <span>${d.session || '-'} | ${d.degree || 'B.Tech'} S${d.semester || '-'}</span>
                 </div>
             </div>`;
 
@@ -379,9 +379,9 @@ async function exportTeacherReportPDF() {
     const name = document.getElementById('t-name-display').innerText;
 
     // Filter Context
-    const fYear = document.getElementById('exportFilterYear').value;
+    const fDegree = document.getElementById('exportFilterDegree').value;
     const fSem = document.getElementById('exportFilterSemester').value;
-    let filterText = (fYear === 'all' && fSem === 'all') ? "All Sessions" : `Filtered: Year ${fYear !== 'all' ? fYear : 'All'} / Sem ${fSem !== 'all' ? fSem : 'All'}`;
+    let filterText = (fDegree === 'all' && fSem === 'all') ? "All Sessions" : `Filtered: Degree ${fDegree !== 'all' ? fDegree : 'All'} / Sem ${fSem !== 'all' ? fSem : 'All'}`;
 
     // Header
     doc.setFontSize(18);
@@ -399,7 +399,7 @@ async function exportTeacherReportPDF() {
     try {
         const uid = firebase.auth().currentUser.uid;
         let query = db.collection('feedback').where('teacher_id', '==', uid);
-        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fDegree !== 'all') query = query.where('degree', '==', fDegree);
         if (fSem !== 'all') query = query.where('semester', '==', fSem);
 
         doc.text("Calculating performance metrics...", 14, yPos);
@@ -473,7 +473,7 @@ async function exportTeacherReportPDF() {
         }
 
         // Skip Dashboard Charts if filtered, as they are static.
-        if (fYear === 'all' && fSem === 'all') {
+        if (fDegree === 'all' && fSem === 'all') {
             // Optional: Include captured charts if needed
         } else {
             doc.setFontSize(10);
@@ -481,7 +481,7 @@ async function exportTeacherReportPDF() {
             doc.text("(Standard dashboard charts omitted for filtered custom report)", 14, yPos);
         }
 
-        doc.save(`Performance_Report_${name.replace(/\s+/g, '_')}_${fYear}_${fSem}.pdf`);
+        doc.save(`Performance_Report_${name.replace(/\s+/g, '_')}_${fDegree}_${fSem}.pdf`);
 
     } catch (e) {
         console.error(e);
@@ -498,12 +498,12 @@ async function exportMyFeedbackXLSX() {
     try {
         const uid = firebase.auth().currentUser.uid;
 
-        const fYear = document.getElementById('exportFilterYear').value;
+        const fDegree = document.getElementById('exportFilterDegree').value;
         const fSem = document.getElementById('exportFilterSemester').value;
-        const note = (fYear === 'all' && fSem === 'all') ? "" : `Filtered Year:${fYear} Sem:${fSem}`;
+        const note = (fDegree === 'all' && fSem === 'all') ? "" : `Filtered Degree:${fDegree} Sem:${fSem}`;
 
         let query = db.collection('feedback').where('teacher_id', '==', uid);
-        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fDegree !== 'all') query = query.where('degree', '==', fDegree);
         if (fSem !== 'all') query = query.where('semester', '==', fSem);
 
         const snap = await query.get();
@@ -518,7 +518,7 @@ async function exportMyFeedbackXLSX() {
                 "Session": d.session || 'N/A',
                 "Rating": d.rating,
                 "Comments": d.comments || '',
-                "Year": d.year || '-',
+                "Degree": d.degree || 'B.Tech',
                 "Semester": d.semester || '-',
                 "Date": d.submitted_at ? new Date(d.submitted_at.seconds * 1000).toLocaleDateString() : '-',
                 "Context": note
@@ -531,7 +531,7 @@ async function exportMyFeedbackXLSX() {
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "My Feedback");
-        XLSX.writeFile(wb, `My_Feedback_History_Y${fYear}_S${fSem}.xlsx`);
+        XLSX.writeFile(wb, `My_Feedback_History_D${fDegree}_S${fSem}.xlsx`);
 
     } catch (e) {
         console.error(e);

@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('pEmailDisplay').innerText = currentUserDoc.email;
                 document.getElementById('pRegDisplay').innerText = currentUserDoc.registerNumber || user.uid.substring(0, 8).toUpperCase();
                 document.getElementById('pDeptDisplay').innerText = currentUserDoc.department || 'N/A';
-                document.getElementById('pYearSemDisplay').innerText = `Year ${currentUserDoc.year || '-'} / Sem ${currentUserDoc.semester || '-'}`;
+                document.getElementById('pYearSemDisplay').innerText = `${currentUserDoc.degree || 'B.Tech'} / Sem ${currentUserDoc.semester || '-'}`;
                 // Session is not directly stored on user usually, but if it is:
                 document.getElementById('pSessionDisplay').innerText = currentUserDoc.session || 'Current';
                 document.getElementById('profile-avatar-large').src = `https://ui-avatars.com/api/?name=${currentUserDoc.name}&background=0D8ABC&color=fff&size=128`;
@@ -100,7 +100,7 @@ function loadTeachers() {
             const t = doc.data();
             teacherDataMap[doc.id] = t;
 
-            // NEW: Only add teacher if they have at least one OPEN subject for my Year/Sem
+            // NEW: Only add teacher if they have at least one OPEN subject for my Degree/Sem
             const valid = hasValidSubjects(t);
             if (valid) {
                 const opt = document.createElement('option');
@@ -118,25 +118,34 @@ function loadTeachers() {
 // Helper to check if teacher has valid subjects for current student
 function hasValidSubjects(teacher) {
     if (!teacher.assignedSubjects || !Array.isArray(teacher.assignedSubjects)) return false; // Strict mode: must have assigned subjects
-    const myYear = (currentUserDoc.year || '1').toString();
+    // const myYear = (currentUserDoc.year || '1').toString(); 
+    // We now rely on Degree + Semester mostly, but existing structure uses Year/Sem in assignedSubjects.
+    // However, assignedSubjects should now conceptually map to the student's degree/sem.
+    // If assignedSubjects structure wasn't changed to include degree, we assume it matches if Year/Sem matches.
+    // But wait, year is derived from sem/degree.
+    // Let's assume assignedSubjects still has 'year' and 'semester'.
+    // We need to check if the student's degree matches the subject's degree?
+    // Added 'degree' to assignedSubjects in teacher dashboard.
+
+    const myDegree = currentUserDoc.degree || 'B.Tech';
     const mySem = (currentUserDoc.semester || '1').toString();
 
-    // Find at least one subject that is Open AND matches Year/Sem
-    return teacher.assignedSubjects.some(s => s.isOpen && s.year.toString() === myYear && s.semester.toString() === mySem);
+    // Find at least one subject that is Open AND matches Degree/Sem
+    return teacher.assignedSubjects.some(s => s.isOpen && (s.degree || 'B.Tech') === myDegree && s.semester.toString() === mySem);
 }
 
 function getValidSubjects(teacher) {
     if (!teacher.assignedSubjects) return [];
-    const myYear = (currentUserDoc.year || '1').toString();
+    const myDegree = currentUserDoc.degree || 'B.Tech';
     const mySem = (currentUserDoc.semester || '1').toString();
-    return teacher.assignedSubjects.filter(s => s.isOpen && s.year.toString() === myYear && s.semester.toString() === mySem);
+    return teacher.assignedSubjects.filter(s => s.isOpen && (s.degree || 'B.Tech') === myDegree && s.semester.toString() === mySem);
 }
 
 
 
 // Helper for consistent key generation
-function getFeedbackKey(tid, year, sem, session, subject) {
-    return `${tid}_${year}_${sem}_${session}_${subject}`;
+function getFeedbackKey(tid, degree, sem, session, subject) {
+    return `${tid}_${degree}_${sem}_${session}_${subject}`;
 }
 
 // 2. UPDATED loadOpenReviews
@@ -159,7 +168,7 @@ function loadOpenReviews() {
         let html = '';
         let visibleCount = 0;
 
-        const myYear = (currentUserDoc.year || '1').toString();
+        const myDegree = currentUserDoc.degree || 'B.Tech';
         const mySem = (currentUserDoc.semester || '1').toString();
 
         snap.forEach(doc => {
@@ -177,8 +186,8 @@ function loadOpenReviews() {
             // Check if ALL valid subjects are submitted
             let pendingSubjects = [];
             validSubjects.forEach(s => {
-                // Key: Teacher + Year + Sem + Session + SubjectName
-                const key = getFeedbackKey(tid, myYear, mySem, session, s.name);
+                // Key: Teacher + Degree + Sem + Session + SubjectName
+                const key = getFeedbackKey(tid, myDegree, mySem, session, s.name);
                 if (!submittedSessions.has(key)) {
                     pendingSubjects.push(s.name);
                 }
@@ -208,7 +217,7 @@ function loadOpenReviews() {
             </div>`;
         });
 
-        container.innerHTML = html || `<div style="grid-column:1/-1; text-align:center; color:#999;">No reviews available for your Year/Semester.</div>`;
+        container.innerHTML = html || `<div style="grid-column:1/-1; text-align:center; color:#999;">No reviews available for your Degree/Semester.</div>`;
     });
 }
 
@@ -258,12 +267,12 @@ function checkReviewStatus() {
     // Creating options
     const session = teacher.activeSession || 'General';
     let availableCount = 0;
-    const year = (currentUserDoc.year || '1').toString();
+    const degree = currentUserDoc.degree || 'B.Tech';
     const sem = (currentUserDoc.semester || '1').toString();
 
     validSubjects.forEach(s => {
         // Check duplicate using standard Key
-        const key = getFeedbackKey(uid, year, sem, session, s.name);
+        const key = getFeedbackKey(uid, degree, sem, session, s.name);
         if (!submittedSessions.has(key)) {
             const opt = document.createElement('option');
             opt.value = s.name;
@@ -309,11 +318,12 @@ async function submitFeedback(e) {
     const teacher = teacherDataMap[teacherId];
     const session = teacher.activeSession || 'General';
 
-    const year = (currentUserDoc.year || '1').toString();
+    const year = (currentUserDoc.year || '1').toString(); // Store year for legacy/record
+    const degree = currentUserDoc.degree || 'B.Tech';
     const sem = (currentUserDoc.semester || '1').toString();
 
     // STRICT DUPLICATE CHECK
-    const key = getFeedbackKey(teacherId, year, sem, session, subject);
+    const key = getFeedbackKey(teacherId, degree, sem, session, subject);
 
     if (submittedSessions.has(key)) {
         return alert("Duplicate review: You have already submitted feedback for this subject.");
@@ -327,6 +337,7 @@ async function submitFeedback(e) {
         comments: document.getElementById('comments').value,
         department: teacher.department || 'General',
         session: session,
+        degree: degree,
         year: year,
         semester: sem,
         submitted_at: new Date()
@@ -397,7 +408,7 @@ function loadHistory() {
 
 function filterHistory() {
     const container = document.getElementById('history-container');
-    const fYear = document.getElementById('histFilterYear').value;
+    const fDegree = document.getElementById('histFilterDegree') ? document.getElementById('histFilterDegree').value : 'all';
     const fSem = document.getElementById('histFilterSem').value;
     const docs = window.allHistoryDocs || [];
 
@@ -408,12 +419,10 @@ function filterHistory() {
 
     docs.forEach(d => {
         // Filter Logic
-        // d.year and d.semester are stored in feedback. 
-        // If not present (old data), we treat as "1" or exclude? Let's match if possible or show if 'all'.
-        const dYear = (d.year || '1').toString();
+        const dDegree = d.degree || 'B.Tech';
         const dSem = (d.semester || '1').toString();
 
-        if (fYear !== 'all' && dYear !== fYear) return;
+        if (fDegree !== 'all' && dDegree !== fDegree) return;
         if (fSem !== 'all' && dSem !== fSem) return;
 
         hasData = true;
