@@ -25,10 +25,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('dept-avatar').src = `https://ui-avatars.com/api/?name=${dName}&background=10b981&color=fff`;
 
                 // Active Session Logic
-                const actSess = currentDeptDoc.activeSession || 'NOT SET';
-                document.getElementById('current-session-display').innerText = `Active Session: ${actSess}`;
-                document.getElementById('pSessionDisplay').innerText = actSess;
-                if (document.getElementById('sSession')) document.getElementById('sSession').value = actSess;
+                const sessions = currentDeptDoc.sessionsList || [];
+                const activeB = sessions.find(s => s.degree === 'B.Tech' && s.isActive)?.name || 'None';
+                const activeM = sessions.find(s => s.degree === 'M.Tech' && s.isActive)?.name || 'None';
+                // Fallback for old data
+                const legacyActive = currentDeptDoc.activeSession;
+                const displaySess = (sessions.length > 0) ? `B.Tech: ${activeB} | M.Tech: ${activeM}` : `Active: ${legacyActive || 'None'}`;
+
+                document.getElementById('current-session-display').innerText = displaySess;
+                // document.getElementById('pSessionDisplay').innerText = actSess; // Removed as it might be complex to display single
+                // Auto-fill session if only one active? handled in addStudent dynamically
 
                 // Load Data
                 // Profile Section
@@ -87,18 +93,27 @@ const VALIDATORS = {
 };
 
 function loadSessionsList() {
-    const arr = currentDeptDoc.sessionsHistory || [];
-    const container = document.getElementById('sessions-list-container');
-    if (!arr.length) { container.innerHTML = "<p>No sessions created yet.</p>"; return; }
+    // Migrating to sessionsList (Array of Objects: {name, degree, isActive})
+    // If old sessionsHistory (Array of Strings) exists, we might need to display them or migrate.
+    // For now, prefer sessionsList.
+    let list = currentDeptDoc.sessionsList || [];
 
-    let html = '<table class="w-full"><thead><tr><th>Session</th><th>Status</th><th>Action</th></tr></thead><tbody>';
-    arr.forEach(s => {
-        const isActive = s === currentDeptDoc.activeSession;
+    // Compatibility: If list empty but history exists, show history as 'Unknown Degree' or 'B.Tech' default?
+    if (list.length === 0 && currentDeptDoc.sessionsHistory) {
+        list = currentDeptDoc.sessionsHistory.map(s => ({ name: s, degree: 'B.Tech', isActive: s === currentDeptDoc.activeSession }));
+    }
+
+    const container = document.getElementById('sessions-list-container');
+    if (!list.length) { container.innerHTML = "<p>No sessions created yet.</p>"; return; }
+
+    let html = '<table class="w-full"><thead><tr><th>Session</th><th>Degree</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+    list.forEach(s => {
         html += `<tr>
-            <td><strong>${s}</strong></td>
-            <td>${isActive ? '<span class="pill pill-active">Active</span>' : '<span style="color:#999;">Inactive</span>'}</td>
+            <td><strong>${s.name}</strong></td>
+             <td>${s.degree || 'B.Tech'}</td>
+            <td>${s.isActive ? '<span class="pill pill-active">Active</span>' : '<span style="color:#999;">Inactive</span>'}</td>
             <td>
-                ${!isActive ? `<button class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.8em;" onclick="setActiveSession('${s}')">Set Active</button>` : 'Selected'}
+                ${!s.isActive ? `<button class="btn btn-outline" style="padding:0.25rem 0.5rem; font-size:0.8em;" onclick="setActiveSession('${s.name}', '${s.degree}')">Set Active</button>` : 'Selected'}
             </td>
         </tr>`;
     });
@@ -108,28 +123,62 @@ function loadSessionsList() {
 
 async function createNewSession() {
     const s = document.getElementById('newSessionName').value.trim();
+    const deg = document.getElementById('newSessionDegree').value;
     if (!s) return alert("Enter session name");
 
     // Validate Session
     const vSess = VALIDATORS.session(s);
     if (vSess !== true) return alert(vSess);
 
-    if (currentDeptDoc.sessionsHistory?.includes(s)) return alert("Session exists");
+    let list = currentDeptDoc.sessionsList || [];
+    if (list.some(x => x.name === s && x.degree === deg)) return alert("Session exists for this degree");
 
     try {
+        // Deactivate other sessions of same degree
+        list = list.map(item => {
+            if (item.degree === deg) return { ...item, isActive: false };
+            return item;
+        });
+
+        // Add new
+        list.push({ name: s, degree: deg, isActive: true });
+
+        // Update activeSession string for legacy/global support if needed? 
+        // Maybe just keep 'activeSession' as the LAST created one, or remove usage.
+        // We'll update 'sessionsList'.
+
         await db.collection('users').doc(firebase.auth().currentUser.uid).update({
+            sessionsList: list,
+            // Update legacy fields to prevent errors in other parts if they rely on it, 
+            // though we should move away from them.
             activeSession: s,
             sessionsHistory: firebase.firestore.FieldValue.arrayUnion(s)
         });
-        alert(`Session ${s} created and set active.`);
+        alert(`Session ${s} (${deg}) created and set active.`);
         window.location.reload();
     } catch (e) { console.error(e); alert("Error"); }
 }
 
-async function setActiveSession(s) {
-    if (!confirm(`Set ${s} as active?`)) return;
+async function setActiveSession(name, degree) {
+    if (!confirm(`Set ${name} as active for ${degree}?`)) return;
     try {
-        await db.collection('users').doc(firebase.auth().currentUser.uid).update({ activeSession: s });
+        let list = currentDeptDoc.sessionsList || [];
+        // Compatibility migration if empty
+        if (list.length === 0 && currentDeptDoc.sessionsHistory) {
+            list = currentDeptDoc.sessionsHistory.map(s => ({ name: s, degree: 'B.Tech', isActive: s === currentDeptDoc.activeSession }));
+        }
+
+        list = list.map(item => {
+            if (item.degree === degree) {
+                return { ...item, isActive: item.name === name };
+            }
+            return item;
+        });
+
+        await db.collection('users').doc(firebase.auth().currentUser.uid).update({
+            sessionsList: list,
+            activeSession: name // Legacy compat
+        });
         window.location.reload();
     } catch (e) { console.error(e); }
 }
@@ -258,14 +307,14 @@ function loadDeptStudents() {
 }
 
 function filterDeptStudentList() {
-    const filterYear = document.getElementById('deptStudentYearFilter') ? document.getElementById('deptStudentYearFilter').value : 'all';
+    const filterDegree = document.getElementById('deptStudentDegreeFilter') ? document.getElementById('deptStudentDegreeFilter').value : 'all';
     const filterSem = document.getElementById('deptStudentSemFilter') ? document.getElementById('deptStudentSemFilter').value : 'all';
     const container = document.getElementById('dept-students-list');
 
     let filtered = allDeptStudents;
 
-    if (filterYear !== 'all') {
-        filtered = filtered.filter(s => (s.year || '1').toString() === filterYear);
+    if (filterDegree !== 'all') {
+        filtered = filtered.filter(s => (s.degree || 'B.Tech') === filterDegree);
     }
     if (filterSem !== 'all') {
         filtered = filtered.filter(s => (s.semester || '1').toString() === filterSem);
@@ -277,13 +326,13 @@ function filterDeptStudentList() {
 function renderStudentTable(students, container) {
     if (students.length === 0) { container.innerHTML = "<p>No particular students found.</p>"; return; }
 
-    let html = '<table class="w-full"><thead><tr><th><input type="checkbox" onchange="toggleAllStudents(this)"></th><th>Reg No</th><th>Name</th><th>Year/Sem</th><th>Session</th></tr></thead><tbody>';
+    let html = '<table class="w-full"><thead><tr><th><input type="checkbox" onchange="toggleAllStudents(this)"></th><th>Reg No</th><th>Name</th><th>Degree/Sem</th><th>Session</th></tr></thead><tbody>';
     students.forEach(s => {
         html += `<tr>
             <td><input type="checkbox" class="student-checkbox" value="${s.id}"></td>
             <td>${s.regNum}</td>
             <td>${s.name}</td>
-            <td>Y${s.year || '1'}-S${s.semester || '1'}</td>
+            <td>${s.degree || 'B.Tech'}-S${s.semester || '1'}</td>
             <td>${s.session}</td>
         </tr>`;
     });
@@ -305,7 +354,7 @@ async function loadDeptFeedback() {
 
         const fTeacher = document.getElementById('fbFilterTeacher').value;
         const fRating = document.getElementById('fbFilterRating').value;
-        const fYear = document.getElementById('fbFilterYear') ? document.getElementById('fbFilterYear').value : 'all';
+        const fDegree = document.getElementById('fbFilterDegree') ? document.getElementById('fbFilterDegree').value : 'all';
         const fSem = document.getElementById('fbFilterSemester') ? document.getElementById('fbFilterSemester').value : 'all';
 
         let html = '';
@@ -315,8 +364,8 @@ async function loadDeptFeedback() {
             if (fTeacher !== 'all' && d.teacher_id !== fTeacher) show = false;
             if (fRating === 'low' && d.rating >= 3) show = false;
             if (fRating === 'high' && d.rating <= 3) show = false;
-            if (fYear !== 'all' && (d.year || '1') !== fYear) show = false;
-            if (fSem !== 'all' && (d.semester || '1') !== fSem) show = false;
+            if (fDegree !== 'all' && (d.degree || 'B.Tech') !== fDegree) show = false;
+            if (fSem !== 'all' && (d.semester || '1').toString() !== fSem) show = false;
 
             if (show) {
                 // Match Admin Dashboard Card Style
@@ -353,7 +402,7 @@ async function loadDeptFeedback() {
                         </div>
                         <div class="feedback-footer">
                             <span><i class="ri-calendar-line"></i> ${date}</span>
-                            <span>${d.session || '-'} | Y${d.year || '-'}</span>
+                            <span>${d.session || '-'} | ${d.degree || 'B.Tech'} S${d.semester || '-'}</span>
                         </div>
                     </div>
                 `;
@@ -417,11 +466,19 @@ async function handleDeptAddStudent(e) {
     const reg = document.getElementById('sReg').value.trim();
     const name = document.getElementById('sName').value.trim();
     const pass = document.getElementById('sPass').value;
-    const year = document.getElementById('sYear').value;
+    const degree = document.getElementById('sDegree').value;
     const semester = document.getElementById('sSemester').value;
-    const session = currentDeptDoc.activeSession;
 
-    if (!session) return alert("Please Create & Set an Active Session first in Sessions tab.");
+    // Find active session for this degree
+    let session = null;
+    if (currentDeptDoc.sessionsList) {
+        session = currentDeptDoc.sessionsList.find(s => s.degree === degree && s.isActive)?.name;
+    } else {
+        // Fallback
+        session = currentDeptDoc.activeSession;
+    }
+
+    if (!session) return alert(`No Active Session found for ${degree}. Please set one in Sessions tab.`);
 
     const email = `${reg}@student.fms.local`;
     try {
@@ -429,15 +486,25 @@ async function handleDeptAddStudent(e) {
         const vReg = VALIDATORS.regNum(reg); if (vReg !== true) throw new Error(vReg);
         const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
 
+        // Check Duplicates
+        const dupReg = await db.collection('users').where('regNum', '==', reg).get();
+        if (!dupReg.empty) throw new Error("Student with this Register Number already exists.");
+
+        const dupEmail = await db.collection('users').where('email', '==', email).get();
+        if (!dupEmail.empty) throw new Error("User with this Email already exists.");
+
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid, name, email, role: 'student', status: 'approved',
             regNum: reg, department: currentDeptId, session: session,
-            year: year || '1', semester: semester || '1',
+            degree: degree, semester: semester || '1',
+            year: Math.ceil((semester || 1) / 2).toString(), // Compat
             createdAt: new Date()
         });
         alert("Student Created!"); e.target.reset();
         document.getElementById('sSession').value = session;
+        // Reset Semester
+        document.getElementById('sSemester').innerHTML = '<option value="" disabled selected>Sem</option>';
     } catch (e) { alert(e.message); }
 }
 
@@ -449,6 +516,10 @@ async function handleDeptAddTeacher(e) {
     try {
         // Validation
         const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
+        // Check Duplicate
+        const dupEmail = await db.collection('users').where('email', '==', email).get();
+        if (!dupEmail.empty) throw new Error("Teacher with this Email already exists.");
 
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
@@ -496,7 +567,35 @@ async function createUserInSecondaryApp(email, password) {
     catch (e) { await app.delete(); throw e; }
 }
 
-window.approveUser = async (uid) => { await db.collection('users').doc(uid).update({ status: 'approved' }); }
+window.approveUser = async (uid) => {
+    try {
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (!userDoc.exists) return;
+        const u = userDoc.data();
+
+        if (u.role === 'student' && u.department && u.session && u.degree) {
+            // We are in Department Dashboard, so 'currentDeptDoc' and 'currentDeptId' should be available globally or we fetch.
+            // Using logic similar to admin.js for safety, or relying on currentDeptDoc if available?
+            // currentDeptDoc is loaded in Department Dashboard.
+            if (currentDeptDoc && currentDeptId === u.department) {
+                let sessions = currentDeptDoc.sessionsList || [];
+                const exists = sessions.find(s => s.name === u.session && s.degree === u.degree);
+
+                if (!exists) {
+                    sessions.push({
+                        name: u.session,
+                        degree: u.degree,
+                        isActive: false
+                    });
+                    // Update Local and DB
+                    currentDeptDoc.sessionsList = sessions; // Optimistic update
+                    await db.collection('users').doc(firebase.auth().currentUser.uid).update({ sessionsList: sessions });
+                }
+            }
+        }
+        await db.collection('users').doc(uid).update({ status: 'approved' });
+    } catch (e) { console.error(e); alert("Error: " + e.message); }
+}
 window.rejectUser = async (uid) => { if (confirm("Reject?")) await db.collection('users').doc(uid).delete(); }
 window.toggleTeacherReview = async (tid, val) => { await db.collection('users').doc(tid).update({ isReviewOpen: val }); }
 
@@ -593,6 +692,23 @@ async function openSubjectModal(teacherId) {
     }
 
     document.getElementById('subjectModalSubtitle').innerText = `Assign subjects to ${teacherName}`;
+
+    // Populate Session Dropdown
+    const sessSel = document.getElementById('assignSubSession');
+    sessSel.innerHTML = '<option value="">Select Session</option>';
+
+    // currentDeptDoc should be available globally in department.js
+    if (typeof currentDeptDoc !== 'undefined') {
+        const sessions = currentDeptDoc.sessionsList || [];
+        // Fallback legacy
+        if (currentDeptDoc.session && !sessions.find(s => s.name === currentDeptDoc.session)) {
+            sessions.push({ name: currentDeptDoc.session, isActive: true });
+        }
+        sessions.forEach(s => {
+            sessSel.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+        });
+    }
+
     loadAssignedSubjects(teacherId);
 }
 
@@ -617,7 +733,7 @@ async function loadAssignedSubjects(teacherId) {
                 html += `
                     <tr style="border-bottom:1px solid #eee;">
                         <td style="padding:0.5rem;">${s.name}</td>
-                        <td style="padding:0.5rem;">Y${s.year}-S${s.semester}</td>
+                        <td style="padding:0.5rem;">${s.degree || 'B.Tech'} - S${s.semester} <br><small style="color:#666;">${s.session || 'All'}</small></td>
                         <td style="padding:0.5rem;">
                             <label class="switch" style="transform:scale(0.8);">
                                 <input type="checkbox" ${s.isOpen ? 'checked' : ''} onchange="toggleSubjectStatus('${teacherId}', ${index}, this.checked)">
@@ -640,18 +756,22 @@ async function handleAddSubject(e) {
     e.preventDefault();
     if (!currentManageTeacherId) return;
     const name = document.getElementById('assignSubName').value;
-    const year = document.getElementById('assignSubYear').value;
+    const degree = document.getElementById('assignSubDegree').value;
     const sem = document.getElementById('assignSubSem').value;
+    const session = document.getElementById('assignSubSession').value.trim();
 
     try {
+        const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
+
         const docRef = db.collection('users').doc(currentManageTeacherId);
         const doc = await docRef.get();
         let subjects = doc.data().assignedSubjects || [];
 
         subjects.push({
             name: name,
-            year: year,
+            degree: degree,
             semester: sem,
+            session: session,
             isOpen: true
         });
 
@@ -732,13 +852,14 @@ async function processBatchUpdate(ids, direction) {
             const student = allDeptStudents.find(s => s.id === uid);
             if (!student) continue;
 
-            const currentYear = parseInt(student.year) || 1;
             const currentSem = parseInt(student.semester) || 1;
+            const degree = student.degree || 'B.Tech';
 
-            const { newYear, newSem } = calculateNewLevel(currentYear, currentSem, direction);
+            const { newYear, newSem } = calculateNewLevel(degree, currentSem, direction);
 
             if (newYear !== currentYear || newSem !== currentSem) {
                 await db.collection('users').doc(uid).update({
+                    degree: degree, // Persistence
                     year: newYear.toString(),
                     semester: newSem.toString()
                 });
@@ -753,22 +874,21 @@ async function processBatchUpdate(ids, direction) {
     alert(`Operation Complete.\nUpdated: ${successCount}\nFailed: ${errorCount}`);
 }
 
-function calculateNewLevel(year, sem, direction) {
-    let newSem = sem + direction;
-    let newYear = year;
+function calculateNewLevel(degree, sem, direction) {
+    const semInt = parseInt(sem);
+    let newSem = semInt + direction;
+    const maxSem = SEMESTERS[degree] || 8; // Default B.Tech
 
     if (direction > 0) { // Promoting
-        newYear = Math.ceil(newSem / 2);
-    } else { // Demoting
-        if (newSem < 1) {
-            newSem = 1;
-            newYear = 1;
-        } else {
-            newYear = Math.ceil(newSem / 2);
+        if (newSem > maxSem) {
+            // Graduated logic left to caller if desired or just clamp
         }
+    } else { // Demoting
+        if (newSem < 1) newSem = 1;
     }
 
-    if (newYear > 4) newYear = 4;
+    // Derived Year
+    const newYear = Math.ceil(newSem / 2);
 
     return { newYear, newSem };
 }
@@ -786,9 +906,9 @@ async function exportDeptReportPDF() {
     const doc = new jsPDF();
 
     // Filter Context
-    const fYear = document.getElementById('exportFilterYear').value;
+    const fDegree = document.getElementById('exportFilterDegree').value;
     const fSem = document.getElementById('exportFilterSemester').value;
-    let filterText = (fYear === 'all' && fSem === 'all') ? "All Sessions" : `Filtered: Year ${fYear !== 'all' ? fYear : 'All'} / Sem ${fSem !== 'all' ? fSem : 'All'}`;
+    let filterText = (fDegree === 'all' && fSem === 'all') ? "All Sessions" : `Filtered: Degree ${fDegree !== 'all' ? fDegree : 'All'} / Sem ${fSem !== 'all' ? fSem : 'All'}`;
 
     // Title
     doc.setFontSize(18);

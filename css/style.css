@@ -194,13 +194,15 @@ h4 {
   color: var(--neutral-700);
 }
 
-.form-group input {
+.form-group input,
+.form-group select {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid var(--neutral-300);
   border-radius: var(--radius-md);
   font-family: inherit;
   transition: border-color 0.2s;
+  background-color: white; /* Ensure background is white for selects */
 }
 
 .form-group input:focus {

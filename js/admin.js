@@ -7,6 +7,7 @@
 let allPendingUsers = [];
 let allStudents = [];
 let allTeachers = []; // Crucial for Feedback Filtering
+let allDepartments = [];
 
 // --- Tab Switching Logic ---
 function switchTab(tabName, linkEl) {
@@ -198,7 +199,7 @@ function loadUserTable(role, containerId) {
         snap.forEach(doc => users.push({ id: doc.id, ...doc.data() }));
         if (role === 'student') { allStudents = users; updateStudentDeptDropdown(users); filterStudentList(); }
         if (role === 'teacher') { allTeachers = users; updateDeptDropdown(users); filterTeacherList(); }
-        if (role === 'department') renderUserTable(users, role, container);
+        if (role === 'department') { allDepartments = users; updateDeptFilterDropdowns(users); filterDepartmentList(); }
     });
 }
 
@@ -213,7 +214,7 @@ function updateStudentDeptDropdown(students) {
 }
 function filterStudentList() {
     const filterDept = document.getElementById('studentDeptFilter').value;
-    const filterYear = document.getElementById('studentYearFilter').value;
+    const filterDegree = document.getElementById('studentDegreeFilter').value;
     const filterSem = document.getElementById('studentSemFilter').value;
     const container = document.getElementById('students-table-container');
 
@@ -222,8 +223,8 @@ function filterStudentList() {
     if (filterDept !== 'all') {
         filtered = filtered.filter(s => (s.department || 'General') === filterDept);
     }
-    if (filterYear !== 'all') {
-        filtered = filtered.filter(s => (s.year || '1').toString() === filterYear);
+    if (filterDegree !== 'all') {
+        filtered = filtered.filter(s => (s.degree || 'B.Tech') === filterDegree);
     }
     if (filterSem !== 'all') {
         filtered = filtered.filter(s => (s.semester || '1').toString() === filterSem);
@@ -245,10 +246,49 @@ function filterTeacherList() {
     if (filter === 'all') renderUserTable(allTeachers, 'teacher', container);
     else renderUserTable(allTeachers.filter(t => (t.department || 'General') === filter), 'teacher', container);
 }
+
+function updateDeptFilterDropdowns(departments) {
+    const names = [...new Set(departments.map(d => d.name))];
+    const sessions = [...new Set(departments.map(d => d.session || ''))].filter(s => s);
+
+    const nameSel = document.getElementById('deptFilterName');
+    const sessSel = document.getElementById('deptFilterSession');
+
+    // Save current selection
+    const currName = nameSel.value;
+    const currSess = sessSel.value;
+
+    nameSel.innerHTML = '<option value="all">All Departments</option>';
+    names.forEach(n => nameSel.innerHTML += `<option value="${n}">${n}</option>`);
+
+    sessSel.innerHTML = '<option value="all">All Sessions</option>';
+    sessions.forEach(s => sessSel.innerHTML += `<option value="${s}">${s}</option>`);
+
+    // Restore selection if valid
+    if (names.includes(currName)) nameSel.value = currName;
+    if (sessions.includes(currSess)) sessSel.value = currSess;
+}
+
+function filterDepartmentList() {
+    const filterName = document.getElementById('deptFilterName').value;
+    const filterSession = document.getElementById('deptFilterSession').value;
+    const container = document.getElementById('departments-table-container');
+
+    let filtered = allDepartments;
+
+    if (filterName !== 'all') {
+        filtered = filtered.filter(d => d.name === filterName);
+    }
+    if (filterSession !== 'all') {
+        filtered = filtered.filter(d => (d.session || '') === filterSession);
+    }
+
+    renderUserTable(filtered, 'department', container);
+}
 function renderUserTable(users, role, container) {
     if (users.length === 0) { container.innerHTML = "No users found."; return; }
     let headers = [];
-    if (role === 'student') headers = ['<input type="checkbox" onchange="toggleAllStudents(this)">', 'Name', 'Email', 'Reg No', 'Dept', 'Year/Sem', 'Session'];
+    if (role === 'student') headers = ['<input type="checkbox" onchange="toggleAllStudents(this)">', 'Name', 'Email', 'Reg No', 'Dept', 'Degree - Sem', 'Session'];
     else headers = ['Name', 'Email'];
 
     if (role === 'department') headers.push('Dept ID', 'Name', 'Session');
@@ -256,6 +296,8 @@ function renderUserTable(users, role, container) {
 
     let html = `<table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
     users.forEach(u => {
+        const degreeInfo = role === 'student' ? `${u.degree || 'B.Tech'} - S${u.semester || '1'}` : '';
+
         html += `<tr>
             ${role === 'student' ? `
                 <td><input type="checkbox" class="student-checkbox" value="${u.id}"></td>
@@ -263,12 +305,15 @@ function renderUserTable(users, role, container) {
                 <td>${u.email}</td>
                 <td>${u.regNum || '-'}</td>
                 <td>${u.department || 'General'}</td>
-                <td>Y${u.year || '1'}-S${u.semester || '1'}</td>
+                <td>${degreeInfo}</td>
                 <td>${u.session || '-'}</td>` : `
                 <td>${u.name}</td>
                 <td>${u.email}</td>
             `}
-            ${role === 'department' ? `<td>${u.deptId || '-'}</td><td>${u.name}</td><td>${u.session || '-'}</td>` : ''}
+            ${role === 'department' ? `<td>${u.deptId || '-'}</td><td>${u.name}</td><td>${(u.sessionsList && u.sessionsList.length > 0)
+                ? u.sessionsList.map(s => `<span style="color: #000;">${s.name}</span>`).join(', ')
+                : (u.session || '-')
+                }</td>` : ''}
             ${role === 'teacher' ? `<td>${u.department || 'General'}</td><td><label class="switch"><input type="checkbox" ${u.isReviewOpen ? 'checked' : ''} onchange="toggleReviewStatus('${u.id}', this.checked)"><span class="slider round"></span></label><span style="font-size:0.8em; margin-left:0.5rem; color:${u.isReviewOpen ? '#16a34a' : '#999'}">${u.isReviewOpen ? 'Open' : 'Closed'}</span></td><td><button class="btn btn-sm btn-outline" onclick="openSubjectModal('${u.id}')">Manage</button></td>` : ''}
         </tr>`;
     });
@@ -290,7 +335,7 @@ async function createUserInSecondaryApp(email, password) {
 const VALIDATORS = {
     regNum: (val) => /^\d{11}$/.test(val) || "Registration Number must be 11 digits.",
     deptCode: (val) => /^\d{3}$/.test(val) || "Department Code must be 3 digits.",
-    deptEnum: (val) => ['CSE', 'ME', 'CE', 'ECE', 'EEE'].includes(val) || "Invalid Department. Use CSE, ME, CE, ECE, EEE.",
+    deptCode: (val) => /^\d{3}$/.test(val) || "Department Code must be 3 digits.",
     password: (val) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(val) || "Password too weak. (Min 8 chars, Upper, Lower, Num, Special)",
     session: (val) => {
         if (!/^\d{4}-\d{2}$/.test(val)) return "Session format: YYYY-YY (e.g. 2023-27)";
@@ -309,24 +354,35 @@ async function handleAddSingleStudent(e) {
 
     const session = document.getElementById('addSession').value;
     const pass = document.getElementById('addPassword').value;
-    const year = document.getElementById('addYear').value;
+    const degree = document.getElementById('addDegree').value;
     const semester = document.getElementById('addSemester').value;
     const email = `${reg}@student.fms.local`;
 
     try {
         // Validation
+        // Validation
         const vReg = VALIDATORS.regNum(reg); if (vReg !== true) throw new Error(vReg);
         const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
         const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
+        // Check Duplicates
+        const dupReg = await db.collection('users').where('regNum', '==', reg).get();
+        if (!dupReg.empty) throw new Error("Student with this Register Number already exists.");
+
+        const dupEmail = await db.collection('users').where('email', '==', email).get();
+        if (!dupEmail.empty) throw new Error("User with this Email already exists.");
 
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid: uid, name: name, email: email, role: 'student', status: 'approved',
             regNum: reg, department: dept, session: session,
-            year: year || '1', semester: semester || '1',
+            degree: degree, semester: semester || '1',
+            year: Math.ceil((semester || 1) / 2).toString(), // Compat
             createdAt: new Date()
         });
         alert(`Student Created!`); e.target.reset();
+        // Reset Semester dropdown
+        document.getElementById('addSemester').innerHTML = '<option value="" disabled selected>Sem</option>';
     } catch (err) { alert("Error: " + err.message); }
 }
 
@@ -344,24 +400,21 @@ async function handleAddSingleTeacher(e) {
     e.preventDefault();
     const name = document.getElementById('addTeacherName').value;
     const email = document.getElementById('addTeacherEmail').value;
-    const dept = document.getElementById('addTeacherDept').value; // Returns ID (105) or Name?
-    // Admin HTML for Teacher Add uses Dropdown returning ID (e.g. 105).
-    // Teacher Profile expects "CSE" (Name). `admin.html:595` options show value="101".
-    // I should map this ID to Name for consistency if Teacher profile expects Name string.
-    // `auth.js` Teacher Reg expects 'regDept' text input.
-    // Let's coerce the dropdown value to Name string here to be safe.
-    const branchMap = { '101': 'CE', '103': 'ME', '104': 'EEE', '105': 'CSE', '106': 'ECE' };
-    const deptName = branchMap[dept] || dept;
-
+    const dept = document.getElementById('addTeacherDept').value;
     const pass = document.getElementById('addTeacherPassword').value;
 
     try {
         const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+        const vDept = VALIDATORS.deptCode(dept); if (vDept !== true) throw new Error(vDept);
+
+        // Check Duplicate
+        const dupEmail = await db.collection('users').where('email', '==', email).get();
+        if (!dupEmail.empty) throw new Error("Teacher with this Email already exists.");
 
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid: uid, name: name, email: email, role: 'teacher', status: 'approved',
-            department: deptName, isReviewOpen: false, createdAt: new Date()
+            department: dept, isReviewOpen: false, createdAt: new Date()
         });
         alert(`Teacher Created!`); e.target.reset();
     } catch (err) { alert("Error: " + err.message); }
@@ -380,9 +433,17 @@ async function handleAddSingleDept(e) {
 
     try {
         const vCode = VALIDATORS.deptCode(id); if (vCode !== true) throw new Error(vCode);
-        const vName = VALIDATORS.deptEnum(name); if (vName !== true) throw new Error(vName);
+        // const vName = VALIDATORS.deptEnum(name); if (vName !== true) throw new Error(vName);
         const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
+
         const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+
+        // Check Duplicate
+        const dupId = await db.collection('users').where('deptId', '==', id).get();
+        if (!dupId.empty) throw new Error("Department with this ID already exists.");
+
+        const dupEmail = await db.collection('users').where('email', '==', email).get();
+        if (!dupEmail.empty) throw new Error("Department with this Email already exists.");
 
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
@@ -395,7 +456,46 @@ async function handleAddSingleDept(e) {
 function loadApprovals() { const listContainer = document.getElementById('approvals-list-container'); listContainer.innerHTML = 'Loading...'; db.collection('users').where('status', '==', 'pending').onSnapshot(snap => { allPendingUsers = []; snap.forEach(doc => allPendingUsers.push({ id: doc.id, ...doc.data() })); renderApprovals('all'); }); }
 function filterApprovals(role, tabEl) { document.querySelectorAll('.sub-tab').forEach(el => el.classList.remove('active')); tabEl.classList.add('active'); renderApprovals(role); }
 function renderApprovals(filterRole) { const container = document.getElementById('approvals-list-container'); const filtered = filterRole === 'all' ? allPendingUsers : allPendingUsers.filter(u => u.role === filterRole); if (filtered.length === 0) { container.innerHTML = `<p style="padding:1rem;">No pending requests for ${filterRole}.</p>`; return; } let html = '<table class="w-full"><thead><tr><th>Name</th><th>Role</th><th>Info</th><th>Actions</th></tr></thead><tbody>'; filtered.forEach(u => { html += `<tr><td><strong>${u.name}</strong><br><small>${u.email}</small></td><td><span class="pill pill-pending">${u.role.toUpperCase()}</span></td><td>${u.role === 'student' ? u.regNum : (u.deptId || 'N/A')}</td><td><button class="btn btn-primary" onclick="approveUser('${u.id}')">Approve</button> <button class="btn btn-outline" onclick="rejectUser('${u.id}')">Reject</button></td></tr>`; }); html += '</tbody></table>'; container.innerHTML = html; }
-window.approveUser = async (uid) => { try { await db.collection('users').doc(uid).update({ status: 'approved' }); } catch (e) { console.error(e); } };
+window.approveUser = async (uid) => {
+    try {
+        const userDoc = await db.collection('users').doc(uid).get();
+        if (!userDoc.exists) return;
+        const u = userDoc.data();
+
+        if (u.role === 'student' && u.department && u.session && u.degree) {
+            const deptId = u.department;
+            // Find Department User Doc (Query by deptId field or iterate? Depts are Users with role='department' and deptId=...)
+            // Actually, we need the doc ID of the department user to update it.
+            // Let's query:
+            const deptSnap = await db.collection('users').where('role', '==', 'department').where('deptId', '==', deptId).limit(1).get();
+
+            if (!deptSnap.empty) {
+                const deptDocRef = deptSnap.docs[0].ref;
+                const deptData = deptSnap.docs[0].data();
+                let sessions = deptData.sessionsList || [];
+
+                // Check if session exists
+                // We match Name AND Degree.
+                const exists = sessions.find(s => s.name === u.session && s.degree === u.degree);
+
+                if (!exists) {
+                    // Auto-create session
+                    console.log(`Auto-creating session ${u.session} (${u.degree}) for Dept ${deptId}`);
+                    sessions.push({
+                        name: u.session,
+                        degree: u.degree,
+                        isActive: false // Default to Inactive? Or Active? User said "so that student can be directly linked". 
+                        // If we just add it to list, they are linked by string. 
+                    });
+                    await deptDocRef.update({ sessionsList: sessions });
+                }
+            }
+        }
+
+        await db.collection('users').doc(uid).update({ status: 'approved' });
+        loadApprovals(); // Refresh UI
+    } catch (e) { console.error(e); alert("Error approving user: " + e.message); }
+};
 window.rejectUser = async (uid) => { if (!confirm("Permantently remove this request?")) return; try { await db.collection('users').doc(uid).delete(); } catch (e) { console.error(e); } };
 async function loadProfile() {
     const user = firebase.auth().currentUser;
@@ -465,7 +565,7 @@ async function loadFeedbackExplorer() {
     const filterRating = document.getElementById('fbFilterRating').value;
     const filterDept = document.getElementById('fbFilterDept').value;
     const filterTeacher = document.getElementById('fbFilterTeacher').value;
-    const filterYear = document.getElementById('fbFilterYear') ? document.getElementById('fbFilterYear').value : 'all';
+    const filterDegree = document.getElementById('fbFilterDegree') ? document.getElementById('fbFilterDegree').value : 'all';
     const filterSem = document.getElementById('fbFilterSemester') ? document.getElementById('fbFilterSemester').value : 'all';
     const container = document.getElementById('feedback-explorer-container');
     container.innerHTML = '<p class="text-gray-500">Loading filters...</p>';
@@ -491,8 +591,8 @@ async function loadFeedbackExplorer() {
 
             if (filterRating === 'low' && data.rating >= 3) show = false;
             if (filterRating === 'high' && data.rating <= 3) show = false;
-            if (filterYear !== 'all' && (data.year || '1') !== filterYear) show = false;
-            if (filterSem !== 'all' && (data.semester || '1') !== filterSem) show = false;
+            if (filterDegree !== 'all' && (data.degree || 'B.Tech') !== filterDegree) show = false;
+            if (filterSem !== 'all' && (data.semester || '1').toString() !== filterSem) show = false;
 
             // 2. Department
             if (filterDept !== 'all') {
@@ -541,7 +641,7 @@ async function loadFeedbackExplorer() {
                         </div>
                         <div class="feedback-footer">
                             <span><i class="ri-calendar-line"></i> ${date}</span>
-                            <span>${data.session || '-'} | Y${data.year || '-'}</span>
+                            <span>${data.session || '-'} | ${data.degree || 'B.Tech'} S${data.semester || '-'}</span>
                         </div>
                     </div>
                 `;
@@ -574,6 +674,43 @@ async function openSubjectModal(teacherId) {
     }
 
     document.getElementById('subjectModalSubtitle').innerText = `Assign subjects to ${teacherName}`;
+
+    // Populate Session Dropdown
+    const sessSel = document.getElementById('assignSubSession');
+    sessSel.innerHTML = '<option value="">Select Session</option>';
+
+    // Ensure departments are loaded
+    if (!allDepartments || allDepartments.length === 0) {
+        const snap = await db.collection('users').where('role', '==', 'department').get();
+        allDepartments = [];
+        snap.forEach(doc => allDepartments.push({ id: doc.id, ...doc.data() }));
+    }
+
+    if (allTeachers && allDepartments) {
+        const teacher = allTeachers.find(u => u.id === teacherId);
+        if (teacher && teacher.department) {
+            // Find Department Doc (Match Name OR DeptId)
+            const tDept = teacher.department.toString().toUpperCase();
+            const deptDoc = allDepartments.find(d =>
+                (d.name && d.name.toUpperCase() === tDept) ||
+                (d.deptId && d.deptId.toString() === tDept)
+            );
+
+            if (deptDoc) {
+                const sessions = deptDoc.sessionsList || [];
+                if (deptDoc.session && !sessions.find(s => s.name === deptDoc.session)) {
+                    sessions.push({ name: deptDoc.session, isActive: true });
+                }
+
+                sessions.forEach(s => {
+                    sessSel.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+                });
+            } else {
+                console.warn("Department Doc not found for:", teacher.department);
+            }
+        }
+    }
+
     loadAssignedSubjects(teacherId);
 }
 // kept previous close function
@@ -593,12 +730,12 @@ async function loadAssignedSubjects(teacherId) {
                 list.innerHTML = '<p style="padding:1rem; color:#999; text-align:center;">No subjects assigned.</p>';
                 return;
             }
-            let html = '<table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#f0f0f0; text-align:left;"><th style="padding:0.5rem;">Subject</th><th style="padding:0.5rem;">Year/Sem</th><th style="padding:0.5rem;">Status</th><th style="padding:0.5rem;">Action</th></tr></thead><tbody>';
+            let html = '<table style="width:100%; border-collapse:collapse;"><thead><tr style="background:#f0f0f0; text-align:left;"><th style="padding:0.5rem;">Subject</th>                        <th style="padding:0.5rem;">Degree - Sem</th><th style="padding:0.5rem;">Status</th><th style="padding:0.5rem;">Action</th></tr></thead><tbody>';
             subjects.forEach((s, index) => {
                 html += `
                     <tr style="border-bottom:1px solid #eee;">
                         <td style="padding:0.5rem;">${s.name}</td>
-                        <td style="padding:0.5rem;">Y${s.year}-S${s.semester}</td>
+                        <td style="padding:0.5rem;">${s.degree || 'B.Tech'} - S${s.semester} <br><small style="color:#666;">${s.session || 'All'}</small></td>
                         <td style="padding:0.5rem;">
                             <label class="switch" style="transform:scale(0.8);">
                                 <input type="checkbox" ${s.isOpen ? 'checked' : ''} onchange="toggleSubjectStatus('${teacherId}', ${index}, this.checked)">
@@ -621,18 +758,22 @@ async function handleAddSubject(e) {
     e.preventDefault();
     if (!currentManageTeacherId) return;
     const name = document.getElementById('assignSubName').value;
-    const year = document.getElementById('assignSubYear').value;
+    const degree = document.getElementById('assignSubDegree').value;
     const sem = document.getElementById('assignSubSem').value;
+    const session = document.getElementById('assignSubSession').value.trim();
 
     try {
+        const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
+
         const docRef = db.collection('users').doc(currentManageTeacherId);
         const doc = await docRef.get();
         let subjects = doc.data().assignedSubjects || [];
 
         subjects.push({
             name: name,
-            year: year,
+            degree: degree,
             semester: sem,
+            session: session,
             isOpen: true // Default open
         });
 
@@ -718,13 +859,14 @@ async function processBatchUpdate(ids, direction) {
             const student = allStudents.find(s => s.id === uid);
             if (!student) continue;
 
-            const currentYear = parseInt(student.year) || 1;
             const currentSem = parseInt(student.semester) || 1;
+            const degree = student.degree || 'B.Tech';
 
-            const { newYear, newSem } = calculateNewLevel(currentYear, currentSem, direction);
+            const { newYear, newSem } = calculateNewLevel(degree, currentSem, direction);
 
             if (newYear !== currentYear || newSem !== currentSem) {
                 await db.collection('users').doc(uid).update({
+                    degree: degree, // ensure persistence or update if needed
                     year: newYear.toString(),
                     semester: newSem.toString()
                 });
@@ -739,34 +881,31 @@ async function processBatchUpdate(ids, direction) {
     alert(`Operation Complete.\nUpdated: ${successCount}\nFailed: ${errorCount}`);
 }
 
-function calculateNewLevel(year, sem, direction) {
-    // Logic: 
-    // Promote (+1): 1-1 -> 1-2 -> 2-3 -> 2-4 -> 3-5 -> 3-6 -> 4-7 -> 4-8 -> Graduated?
-    // Wait, typical engineering: Year 1 (Sem 1, 2), Year 2 (Sem 3, 4), Year 3 (Sem 5, 6), Year 4 (Sem 7, 8)
-    // So Sem is the driver.
-    // Sem 1 -> 2 (Same Year 1)
-    // Sem 2 -> 3 (Year changes to 2)
-
-    let newSem = sem + direction;
-    let newYear = year;
+function calculateNewLevel(degree, sem, direction) {
+    const semInt = parseInt(sem);
+    let newSem = semInt + direction;
+    const maxSem = SEMESTERS[degree] || 8;
 
     if (direction > 0) { // Promoting
-        // If New Sem is Odd (e.g., 3, 5, 7), it means we just finished an Even sem, so Year increases
-        // Example: Was Sem 2. New Sem 3. Year was 1. Now Year 2.
-        // Formula: Year = Math.ceil(newSem / 2)
-        newYear = Math.ceil(newSem / 2);
-    } else { // Demoting
-        if (newSem < 1) {
-            newSem = 1;
-            newYear = 1;
-        } else {
-            newYear = Math.ceil(newSem / 2);
+        if (newSem > maxSem) {
+            // Graduated?
+            // Return max for now to indicate end? Or handle in caller
+            // Caller update: year = ceil(newSem/2)
+            // If newSem > maxSem, caller should probably not update or mark as graduated.
+            // But function signature is just returning newYear/newSem.
+            // Let's return newSem. Caller must check limit for Graduation.
+            // Actually, let's just cap it or return a flag?
+            // The caller uses: year: newYear, semester: newSem.
+            // Let's let it go up to maxSem + 1 (Graduated)?
+            // For now, let's clamp to maxSem and rely on manual graduation or allow overflow?
+            // "Promote all" usually just bumps sem.
         }
+    } else { // Demoting
+        if (newSem < 1) newSem = 1;
     }
 
-    // Safety caps
-    if (newYear > 4) newYear = 4; // Assuming 4 year course, or let it go to 5? Let's cap at 4-8 for now or maybe 5-9? 
-    // Actually, let's just restrict logic to Math.ceil. If they go to Sem 9, Year is 5.
+    // Calculate Year derived from Sem
+    const newYear = Math.ceil(newSem / 2);
 
     return { newYear, newSem };
 }
@@ -781,11 +920,11 @@ async function exportSystemSummaryPDF() {
     const doc = new jsPDF();
 
     // Get Filter Context
-    const fYear = document.getElementById('exportFilterYear').value;
+    const fDegree = document.getElementById('exportFilterDegree').value;
     const fSem = document.getElementById('exportFilterSemester').value;
-    let filterText = "All Years, All Semesters";
-    if (fYear !== 'all' || fSem !== 'all') {
-        filterText = `Year: ${fYear === 'all' ? 'All' : fYear} | Sem: ${fSem === 'all' ? 'All' : fSem}`;
+    let filterText = "All Degrees, All Semesters";
+    if (fDegree !== 'all' || fSem !== 'all') {
+        filterText = `Degree: ${fDegree === 'all' ? 'All' : fDegree} | Sem: ${fSem === 'all' ? 'All' : fSem}`;
     }
 
     // Title
