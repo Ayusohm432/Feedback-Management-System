@@ -7,6 +7,7 @@
 let allPendingUsers = [];
 let allStudents = [];
 let allTeachers = []; // Crucial for Feedback Filtering
+let allDepartments = [];
 
 // --- Tab Switching Logic ---
 function switchTab(tabName, linkEl) {
@@ -198,7 +199,7 @@ function loadUserTable(role, containerId) {
         snap.forEach(doc => users.push({ id: doc.id, ...doc.data() }));
         if (role === 'student') { allStudents = users; updateStudentDeptDropdown(users); filterStudentList(); }
         if (role === 'teacher') { allTeachers = users; updateDeptDropdown(users); filterTeacherList(); }
-        if (role === 'department') renderUserTable(users, role, container);
+        if (role === 'department') { allDepartments = users; updateDeptFilterDropdowns(users); filterDepartmentList(); }
     });
 }
 
@@ -244,6 +245,45 @@ function filterTeacherList() {
     const container = document.getElementById('teachers-table-container');
     if (filter === 'all') renderUserTable(allTeachers, 'teacher', container);
     else renderUserTable(allTeachers.filter(t => (t.department || 'General') === filter), 'teacher', container);
+}
+
+function updateDeptFilterDropdowns(departments) {
+    const names = [...new Set(departments.map(d => d.name))];
+    const sessions = [...new Set(departments.map(d => d.session || ''))].filter(s => s);
+
+    const nameSel = document.getElementById('deptFilterName');
+    const sessSel = document.getElementById('deptFilterSession');
+
+    // Save current selection
+    const currName = nameSel.value;
+    const currSess = sessSel.value;
+
+    nameSel.innerHTML = '<option value="all">All Departments</option>';
+    names.forEach(n => nameSel.innerHTML += `<option value="${n}">${n}</option>`);
+
+    sessSel.innerHTML = '<option value="all">All Sessions</option>';
+    sessions.forEach(s => sessSel.innerHTML += `<option value="${s}">${s}</option>`);
+
+    // Restore selection if valid
+    if (names.includes(currName)) nameSel.value = currName;
+    if (sessions.includes(currSess)) sessSel.value = currSess;
+}
+
+function filterDepartmentList() {
+    const filterName = document.getElementById('deptFilterName').value;
+    const filterSession = document.getElementById('deptFilterSession').value;
+    const container = document.getElementById('departments-table-container');
+
+    let filtered = allDepartments;
+
+    if (filterName !== 'all') {
+        filtered = filtered.filter(d => d.name === filterName);
+    }
+    if (filterSession !== 'all') {
+        filtered = filtered.filter(d => (d.session || '') === filterSession);
+    }
+
+    renderUserTable(filtered, 'department', container);
 }
 function renderUserTable(users, role, container) {
     if (users.length === 0) { container.innerHTML = "No users found."; return; }

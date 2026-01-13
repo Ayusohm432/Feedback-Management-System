@@ -631,7 +631,7 @@
                     <div class="card">
                         <div style="display:flex; justify-content:space-between;">
                             <h3>Registered Teachers</h3>
-                            <select id="teacherDeptFilter" onchange="renderUserTable('teacher', allTeachers)"
+                            <select id="teacherDeptFilter" onchange="filterTeacherList()"
                                 style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <option value="all">All</option>
                             </select>
@@ -658,7 +658,20 @@
                         </form>
                     </div>
                     <div class="card">
-                        <h3>All Departments</h3>
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+                            <h3>All Departments</h3>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <select id="deptFilterName" onchange="filterDepartmentList()"
+                                    style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                    <option value="all">All Departments</option>
+                                </select>
+                                <select id="deptFilterSession" onchange="filterDepartmentList()"
+                                    style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
+                                    <option value="all">All Sessions</option>
+                                </select>
+                            </div>
+                        </div>
                         <div id="departments-table-container">Loading...</div>
                     </div>
                 </section>
