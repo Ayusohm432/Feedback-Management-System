@@ -853,13 +853,13 @@ async function processBatchUpdate(ids, direction) {
             if (!student) continue;
 
             const currentSem = parseInt(student.semester) || 1;
+            const currentYear = parseInt(student.year) || Math.ceil(currentSem / 2);
             const degree = student.degree || 'B.Tech';
 
             const { newYear, newSem } = calculateNewLevel(degree, currentSem, direction);
 
-            if (newYear !== currentYear || newSem !== currentSem) {
+            if (newSem !== currentSem) {
                 await db.collection('users').doc(uid).update({
-                    degree: degree, // Persistence
                     year: newYear.toString(),
                     semester: newSem.toString()
                 });
@@ -877,15 +877,11 @@ async function processBatchUpdate(ids, direction) {
 function calculateNewLevel(degree, sem, direction) {
     const semInt = parseInt(sem);
     let newSem = semInt + direction;
-    const maxSem = SEMESTERS[degree] || 8; // Default B.Tech
+    const limits = (typeof SEMESTERS !== 'undefined') ? SEMESTERS : { 'B.Tech': 8, 'M.Tech': 4 };
+    const maxSem = limits[degree] || 8; // Default B.Tech
 
-    if (direction > 0) { // Promoting
-        if (newSem > maxSem) {
-            // Graduated logic left to caller if desired or just clamp
-        }
-    } else { // Demoting
-        if (newSem < 1) newSem = 1;
-    }
+    if (newSem > maxSem) newSem = maxSem;
+    if (newSem < 1) newSem = 1;
 
     // Derived Year
     const newYear = Math.ceil(newSem / 2);

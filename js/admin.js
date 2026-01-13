@@ -850,9 +850,6 @@ async function processBatchUpdate(ids, direction) {
     let successCount = 0;
     let errorCount = 0;
 
-    // Show loading state if possible or just alert at end
-    // For better UX, we could disable buttons
-
     for (const uid of ids) {
         try {
             // Find student data in local cache to calculate next level
@@ -860,13 +857,13 @@ async function processBatchUpdate(ids, direction) {
             if (!student) continue;
 
             const currentSem = parseInt(student.semester) || 1;
+            const currentYear = parseInt(student.year) || Math.ceil(currentSem / 2);
             const degree = student.degree || 'B.Tech';
 
             const { newYear, newSem } = calculateNewLevel(degree, currentSem, direction);
 
-            if (newYear !== currentYear || newSem !== currentSem) {
+            if (newSem !== currentSem) {
                 await db.collection('users').doc(uid).update({
-                    degree: degree, // ensure persistence or update if needed
                     year: newYear.toString(),
                     semester: newSem.toString()
                 });
@@ -884,27 +881,14 @@ async function processBatchUpdate(ids, direction) {
 function calculateNewLevel(degree, sem, direction) {
     const semInt = parseInt(sem);
     let newSem = semInt + direction;
-    const maxSem = SEMESTERS[degree] || 8;
+    // Ensure SEMESTERS is defined or default to B.Tech=8, M.Tech=4
+    const limits = (typeof SEMESTERS !== 'undefined') ? SEMESTERS : { 'B.Tech': 8, 'M.Tech': 4 };
+    const maxSem = limits[degree] || 8;
 
-    if (direction > 0) { // Promoting
-        if (newSem > maxSem) {
-            // Graduated?
-            // Return max for now to indicate end? Or handle in caller
-            // Caller update: year = ceil(newSem/2)
-            // If newSem > maxSem, caller should probably not update or mark as graduated.
-            // But function signature is just returning newYear/newSem.
-            // Let's return newSem. Caller must check limit for Graduation.
-            // Actually, let's just cap it or return a flag?
-            // The caller uses: year: newYear, semester: newSem.
-            // Let's let it go up to maxSem + 1 (Graduated)?
-            // For now, let's clamp to maxSem and rely on manual graduation or allow overflow?
-            // "Promote all" usually just bumps sem.
-        }
-    } else { // Demoting
-        if (newSem < 1) newSem = 1;
-    }
+    if (newSem > maxSem) newSem = maxSem;
+    if (newSem < 1) newSem = 1;
 
-    // Calculate Year derived from Sem
+    // Derived Year
     const newYear = Math.ceil(newSem / 2);
 
     return { newYear, newSem };
