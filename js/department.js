@@ -692,6 +692,23 @@ async function openSubjectModal(teacherId) {
     }
 
     document.getElementById('subjectModalSubtitle').innerText = `Assign subjects to ${teacherName}`;
+
+    // Populate Session Dropdown
+    const sessSel = document.getElementById('assignSubSession');
+    sessSel.innerHTML = '<option value="">Select Session</option>';
+
+    // currentDeptDoc should be available globally in department.js
+    if (typeof currentDeptDoc !== 'undefined') {
+        const sessions = currentDeptDoc.sessionsList || [];
+        // Fallback legacy
+        if (currentDeptDoc.session && !sessions.find(s => s.name === currentDeptDoc.session)) {
+            sessions.push({ name: currentDeptDoc.session, isActive: true });
+        }
+        sessions.forEach(s => {
+            sessSel.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+        });
+    }
+
     loadAssignedSubjects(teacherId);
 }
 
@@ -716,7 +733,7 @@ async function loadAssignedSubjects(teacherId) {
                 html += `
                     <tr style="border-bottom:1px solid #eee;">
                         <td style="padding:0.5rem;">${s.name}</td>
-                        <td style="padding:0.5rem;">${s.degree || 'B.Tech'} - S${s.semester}</td>
+                        <td style="padding:0.5rem;">${s.degree || 'B.Tech'} - S${s.semester} <br><small style="color:#666;">${s.session || 'All'}</small></td>
                         <td style="padding:0.5rem;">
                             <label class="switch" style="transform:scale(0.8);">
                                 <input type="checkbox" ${s.isOpen ? 'checked' : ''} onchange="toggleSubjectStatus('${teacherId}', ${index}, this.checked)">
@@ -741,8 +758,11 @@ async function handleAddSubject(e) {
     const name = document.getElementById('assignSubName').value;
     const degree = document.getElementById('assignSubDegree').value;
     const sem = document.getElementById('assignSubSem').value;
+    const session = document.getElementById('assignSubSession').value.trim();
 
     try {
+        const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
+
         const docRef = db.collection('users').doc(currentManageTeacherId);
         const doc = await docRef.get();
         let subjects = doc.data().assignedSubjects || [];
@@ -751,6 +771,7 @@ async function handleAddSubject(e) {
             name: name,
             degree: degree,
             semester: sem,
+            session: session,
             isOpen: true
         });
 

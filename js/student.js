@@ -118,7 +118,6 @@ function loadTeachers() {
 // Helper to check if teacher has valid subjects for current student
 function hasValidSubjects(teacher) {
     if (!teacher.assignedSubjects || !Array.isArray(teacher.assignedSubjects)) return false; // Strict mode: must have assigned subjects
-    // const myYear = (currentUserDoc.year || '1').toString(); 
     // We now rely on Degree + Semester mostly, but existing structure uses Year/Sem in assignedSubjects.
     // However, assignedSubjects should now conceptually map to the student's degree/sem.
     // If assignedSubjects structure wasn't changed to include degree, we assume it matches if Year/Sem matches.
@@ -126,19 +125,31 @@ function hasValidSubjects(teacher) {
     // Let's assume assignedSubjects still has 'year' and 'semester'.
     // We need to check if the student's degree matches the subject's degree?
     // Added 'degree' to assignedSubjects in teacher dashboard.
-
     const myDegree = currentUserDoc.degree || 'B.Tech';
     const mySem = (currentUserDoc.semester || '1').toString();
 
-    // Find at least one subject that is Open AND matches Degree/Sem
-    return teacher.assignedSubjects.some(s => s.isOpen && (s.degree || 'B.Tech') === myDegree && s.semester.toString() === mySem);
+    // Find at least one subject that is Open AND matches Degree/Sem AND matches Session
+    // If subject.session is missing, fallback to "open for all sessions" or strict? 
+    // Plan said: "Restrict feedback". So if subject has session, match it. If not, maybe allow?
+    // Let's match strict if subject has session.
+    return teacher.assignedSubjects.some(s =>
+        s.isOpen &&
+        (s.degree || 'B.Tech') === myDegree &&
+        s.semester.toString() === mySem &&
+        (!s.session || s.session === (currentUserDoc.session || ''))
+    );
 }
 
 function getValidSubjects(teacher) {
     if (!teacher.assignedSubjects) return [];
     const myDegree = currentUserDoc.degree || 'B.Tech';
     const mySem = (currentUserDoc.semester || '1').toString();
-    return teacher.assignedSubjects.filter(s => s.isOpen && (s.degree || 'B.Tech') === myDegree && s.semester.toString() === mySem);
+    return teacher.assignedSubjects.filter(s =>
+        s.isOpen &&
+        (s.degree || 'B.Tech') === myDegree &&
+        s.semester.toString() === mySem &&
+        (!s.session || s.session === (currentUserDoc.session || ''))
+    );
 }
 
 

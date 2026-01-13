@@ -310,7 +310,10 @@ function renderUserTable(users, role, container) {
                 <td>${u.name}</td>
                 <td>${u.email}</td>
             `}
-            ${role === 'department' ? `<td>${u.deptId || '-'}</td><td>${u.name}</td><td>${u.session || '-'}</td>` : ''}
+            ${role === 'department' ? `<td>${u.deptId || '-'}</td><td>${u.name}</td><td>${(u.sessionsList && u.sessionsList.length > 0)
+                ? u.sessionsList.map(s => `<span style="color: #000;">${s.name}</span>`).join(', ')
+                : (u.session || '-')
+                }</td>` : ''}
             ${role === 'teacher' ? `<td>${u.department || 'General'}</td><td><label class="switch"><input type="checkbox" ${u.isReviewOpen ? 'checked' : ''} onchange="toggleReviewStatus('${u.id}', this.checked)"><span class="slider round"></span></label><span style="font-size:0.8em; margin-left:0.5rem; color:${u.isReviewOpen ? '#16a34a' : '#999'}">${u.isReviewOpen ? 'Open' : 'Closed'}</span></td><td><button class="btn btn-sm btn-outline" onclick="openSubjectModal('${u.id}')">Manage</button></td>` : ''}
         </tr>`;
     });
@@ -460,7 +463,6 @@ window.approveUser = async (uid) => {
         const u = userDoc.data();
 
         if (u.role === 'student' && u.department && u.session && u.degree) {
-            // Check Department for Session
             const deptId = u.department;
             // Find Department User Doc (Query by deptId field or iterate? Depts are Users with role='department' and deptId=...)
             // Actually, we need the doc ID of the department user to update it.
@@ -672,6 +674,43 @@ async function openSubjectModal(teacherId) {
     }
 
     document.getElementById('subjectModalSubtitle').innerText = `Assign subjects to ${teacherName}`;
+
+    // Populate Session Dropdown
+    const sessSel = document.getElementById('assignSubSession');
+    sessSel.innerHTML = '<option value="">Select Session</option>';
+
+    // Ensure departments are loaded
+    if (!allDepartments || allDepartments.length === 0) {
+        const snap = await db.collection('users').where('role', '==', 'department').get();
+        allDepartments = [];
+        snap.forEach(doc => allDepartments.push({ id: doc.id, ...doc.data() }));
+    }
+
+    if (allTeachers && allDepartments) {
+        const teacher = allTeachers.find(u => u.id === teacherId);
+        if (teacher && teacher.department) {
+            // Find Department Doc (Match Name OR DeptId)
+            const tDept = teacher.department.toString().toUpperCase();
+            const deptDoc = allDepartments.find(d =>
+                (d.name && d.name.toUpperCase() === tDept) ||
+                (d.deptId && d.deptId.toString() === tDept)
+            );
+
+            if (deptDoc) {
+                const sessions = deptDoc.sessionsList || [];
+                if (deptDoc.session && !sessions.find(s => s.name === deptDoc.session)) {
+                    sessions.push({ name: deptDoc.session, isActive: true });
+                }
+
+                sessions.forEach(s => {
+                    sessSel.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+                });
+            } else {
+                console.warn("Department Doc not found for:", teacher.department);
+            }
+        }
+    }
+
     loadAssignedSubjects(teacherId);
 }
 // kept previous close function
@@ -696,7 +735,7 @@ async function loadAssignedSubjects(teacherId) {
                 html += `
                     <tr style="border-bottom:1px solid #eee;">
                         <td style="padding:0.5rem;">${s.name}</td>
-                        <td style="padding:0.5rem;">${s.degree || 'B.Tech'} - S${s.semester}</td>
+                        <td style="padding:0.5rem;">${s.degree || 'B.Tech'} - S${s.semester} <br><small style="color:#666;">${s.session || 'All'}</small></td>
                         <td style="padding:0.5rem;">
                             <label class="switch" style="transform:scale(0.8);">
                                 <input type="checkbox" ${s.isOpen ? 'checked' : ''} onchange="toggleSubjectStatus('${teacherId}', ${index}, this.checked)">
@@ -721,8 +760,11 @@ async function handleAddSubject(e) {
     const name = document.getElementById('assignSubName').value;
     const degree = document.getElementById('assignSubDegree').value;
     const sem = document.getElementById('assignSubSem').value;
+    const session = document.getElementById('assignSubSession').value.trim();
 
     try {
+        const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
+
         const docRef = db.collection('users').doc(currentManageTeacherId);
         const doc = await docRef.get();
         let subjects = doc.data().assignedSubjects || [];
@@ -731,6 +773,7 @@ async function handleAddSubject(e) {
             name: name,
             degree: degree,
             semester: sem,
+            session: session,
             isOpen: true // Default open
         });
 

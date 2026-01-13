@@ -849,7 +849,7 @@
             <!-- Add Subject Form -->
             <form id="addSubjectForm" onsubmit="handleAddSubject(event)"
                 style="background:#f9f9f9; padding:1rem; border-radius:8px; margin-bottom:1.5rem;">
-                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:0.5rem; align-items:end;">
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1.5fr auto; gap:0.5rem; align-items:end;">
                     <div>
                         <label style="font-size:0.8em; color:#666;">Subject Name</label>
                         <input type="text" id="assignSubName" required placeholder="e.g. Mathematics-I"
@@ -876,6 +876,13 @@
                             <option value="6">6</option>
                             <option value="7">7</option>
                             <option value="8">8</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8em; color:#666;">Session</label>
+                        <select id="assignSubSession" required
+                            style="padding:0.4rem; width:100%; border:1px solid #ddd; border-radius:4px;">
+                            <option value="">Select Session</option>
                         </select>
                     </div>
                     <button class="btn btn-primary" style="padding:0.5rem 1rem;"><i class="ri-add-line"></i></button>
