@@ -81,3 +81,64 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+/**
+ * Initializes the drag-and-drop file upload UI.
+ * @param {string} inputId - ID of the hidden file input
+ * @param {string} zoneId - ID of the drop zone container
+ * @param {string} displayId - ID of the element to display file name
+ */
+function setupFileUploadUI(inputId, zoneId, displayId) {
+    const input = document.getElementById(inputId);
+    const zone = document.getElementById(zoneId);
+    const display = document.getElementById(displayId);
+
+    if (!input || !zone || !display) return;
+
+    // Trigger input click on zone click
+    zone.addEventListener('click', () => input.click());
+
+    // Drag events
+    ['dragenter', 'dragover'].forEach(eventName => {
+        zone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.add('active');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        zone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.remove('active');
+        }, false);
+    });
+
+    // Drop handler
+    zone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+            input.files = files;
+            updateDisplay(files[0].name);
+        }
+    }, false);
+
+    // Input change handler
+    input.addEventListener('change', () => {
+        if (input.files.length > 0) {
+            updateDisplay(input.files[0].name);
+        }
+    });
+
+    function updateDisplay(name) {
+        display.innerText = name;
+        display.style.color = 'var(--primary)';
+        // Change icon check?
+        const icon = zone.querySelector('.upload-icon i');
+        if (icon) {
+            icon.className = 'ri-file-check-line';
+        }
+    }
+}
