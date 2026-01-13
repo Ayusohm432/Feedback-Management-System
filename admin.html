@@ -505,15 +505,8 @@
                                     style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <input type="text" id="addName" placeholder="Full Name" required
                                     style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
-                                <select id="addDept" required
-                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
-                                    <option value="" disabled selected>Select Dept</option>
-                                    <option value="101">CE (101)</option>
-                                    <option value="103">ME (103)</option>
-                                    <option value="104">EEE (104)</option>
-                                    <option value="105">CSE (105)</option>
-                                    <option value="106">ECE (106)</option>
-                                </select>
+                                <input type="number" id="addDept" placeholder="Dept Code (e.g. 105)" required
+                                    style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <div style="display:flex; gap:0.5rem;">
                                     <select id="addDegree" required
                                         onchange="updateSemesterOptions('addDegree', 'addSemester')"
@@ -606,15 +599,8 @@
                                     style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <input type="email" id="addTeacherEmail" placeholder="Email" required
                                     style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
-                                <select id="addTeacherDept" required
-                                    style="padding: 0.5rem; border:1px solid #ddd; border-radius:4px;">
-                                    <option value="" disabled selected>Select Dept</option>
-                                    <option value="101">CE (101)</option>
-                                    <option value="103">ME (103)</option>
-                                    <option value="104">EEE (104)</option>
-                                    <option value="105">CSE (105)</option>
-                                    <option value="106">ECE (106)</option>
-                                </select>
+                                <input type="number" id="addTeacherDept" placeholder="Dept Code (e.g. 105)" required
+                                    style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <input type="password" id="addTeacherPassword" placeholder="Password" required
                                     style="padding:0.5rem; border:1px solid #ddd; border-radius:4px;">
                                 <button class="btn btn-primary">Create Teacher</button>

@@ -137,8 +137,8 @@ function renderDynamicFields(role) {
         <input type="email" id="regEmail" required placeholder="teacher@college.edu">
       </div>
       <div class="form-group">
-        <label>Department</label>
-        <input type="text" id="regDept" required placeholder="e.g. CSE">
+        <label>Department Code</label>
+        <input type="text" id="regDept" required placeholder="e.g. 105">
       </div>
     `;
     } else {
@@ -279,12 +279,9 @@ async function handleRegisterForm(e) {
             // Let's keep 'name' as user input but add 'branchName' derived.
             profile.branch = branchMap[profile.deptId] || 'Other';
         } else if (selectedRole === 'teacher') {
-            const dName = document.getElementById('regDept').value.toUpperCase();
-            if (!['CSE', 'ME', 'CE', 'ECE', 'EEE'].includes(dName)) {
-                // Soft warn or Error? User said "department name should be either from this...".
-                throw new Error("Invalid Department. Allowed: CSE, ME, CE, ECE, EEE.");
-            }
-            profile.department = dName;
+            const dCode = document.getElementById('regDept').value;
+            if (!/^\d{3}$/.test(dCode)) throw new Error("Department Code must be exactly 3 digits.");
+            profile.department = dCode;
         }
 
         // 3. Save to Firestore

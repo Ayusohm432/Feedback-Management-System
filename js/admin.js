@@ -332,7 +332,7 @@ async function createUserInSecondaryApp(email, password) {
 const VALIDATORS = {
     regNum: (val) => /^\d{11}$/.test(val) || "Registration Number must be 11 digits.",
     deptCode: (val) => /^\d{3}$/.test(val) || "Department Code must be 3 digits.",
-    deptEnum: (val) => ['CSE', 'ME', 'CE', 'ECE', 'EEE'].includes(val) || "Invalid Department. Use CSE, ME, CE, ECE, EEE.",
+    deptCode: (val) => /^\d{3}$/.test(val) || "Department Code must be 3 digits.",
     password: (val) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(val) || "Password too weak. (Min 8 chars, Upper, Lower, Num, Special)",
     session: (val) => {
         if (!/^\d{4}-\d{2}$/.test(val)) return "Session format: YYYY-YY (e.g. 2023-27)";
@@ -397,19 +397,12 @@ async function handleAddSingleTeacher(e) {
     e.preventDefault();
     const name = document.getElementById('addTeacherName').value;
     const email = document.getElementById('addTeacherEmail').value;
-    const dept = document.getElementById('addTeacherDept').value; // Returns ID (105) or Name?
-    // Admin HTML for Teacher Add uses Dropdown returning ID (e.g. 105).
-    // Teacher Profile expects "CSE" (Name). `admin.html:595` options show value="101".
-    // I should map this ID to Name for consistency if Teacher profile expects Name string.
-    // `auth.js` Teacher Reg expects 'regDept' text input.
-    // Let's coerce the dropdown value to Name string here to be safe.
-    const branchMap = { '101': 'CE', '103': 'ME', '104': 'EEE', '105': 'CSE', '106': 'ECE' };
-    const deptName = branchMap[dept] || dept;
-
+    const dept = document.getElementById('addTeacherDept').value;
     const pass = document.getElementById('addTeacherPassword').value;
 
     try {
         const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
+        const vDept = VALIDATORS.deptCode(dept); if (vDept !== true) throw new Error(vDept);
 
         // Check Duplicate
         const dupEmail = await db.collection('users').where('email', '==', email).get();
@@ -418,7 +411,7 @@ async function handleAddSingleTeacher(e) {
         const uid = await createUserInSecondaryApp(email, pass);
         await db.collection('users').doc(uid).set({
             uid: uid, name: name, email: email, role: 'teacher', status: 'approved',
-            department: deptName, isReviewOpen: false, createdAt: new Date()
+            department: dept, isReviewOpen: false, createdAt: new Date()
         });
         alert(`Teacher Created!`); e.target.reset();
     } catch (err) { alert("Error: " + err.message); }
@@ -437,7 +430,7 @@ async function handleAddSingleDept(e) {
 
     try {
         const vCode = VALIDATORS.deptCode(id); if (vCode !== true) throw new Error(vCode);
-        const vName = VALIDATORS.deptEnum(name); if (vName !== true) throw new Error(vName);
+        // const vName = VALIDATORS.deptEnum(name); if (vName !== true) throw new Error(vName);
         const vSess = VALIDATORS.session(session); if (vSess !== true) throw new Error(vSess);
 
         const vPass = VALIDATORS.password(pass); if (vPass !== true) throw new Error(vPass);
