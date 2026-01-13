@@ -238,11 +238,15 @@
                             class="ri-logout-box-r-line"></i> Logout</a></li>
             </ul>
         </aside>
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
         <!-- Main Content -->
         <main style="padding: 0; background: #f8fafc; overflow-y: auto;">
             <!-- Top Bar -->
             <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleSidebar()">
+                    <i class="ri-menu-line"></i>
+                </button>
                 <div>
                     <h2 id="pageTitle" style="margin:0;">Overview</h2>
                     <small style="color:#666;">Welcome back, Scholar</small>
