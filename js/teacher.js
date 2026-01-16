@@ -536,11 +536,100 @@ async function exportMyFeedbackXLSX() {
     } catch (e) {
         console.error(e);
         alert("Export failed: " + e.message);
+
     } finally {
         if (btn) btn.innerHTML = originalText;
     }
 }
 
+async function exportSubjectWiseFeedbackPDF() {
+    const btn = event.target ? event.target.closest('button') : null;
+    if (btn) btn.innerText = "Generating...";
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const uid = firebase.auth().currentUser.uid;
+    const name = document.getElementById('t-name-display').innerText;
+
+    const fDegree = document.getElementById('exportFilterDegree').value;
+    const fSem = document.getElementById('exportFilterSemester').value;
+
+    try {
+        let query = db.collection('feedback').where('teacher_id', '==', uid).orderBy('submitted_at', 'desc').limit(2000);
+
+        const snap = await query.get();
+        if (snap.empty) { alert("No data"); return; }
+
+        const subjects = {};
+
+        snap.forEach(d => {
+            const val = d.data();
+            if (fDegree !== 'all' && (val.degree || 'B.Tech') !== fDegree) return;
+            if (fSem !== 'all' && (val.semester || '1').toString() !== fSem) return;
+
+            const sub = val.subject || 'General';
+            if (!subjects[sub]) subjects[sub] = [];
+
+            subjects[sub].push({
+                rating: val.rating,
+                comment: val.comments || '',
+                date: val.submitted_at ? new Date(val.submitted_at.seconds * 1000).toLocaleDateString() : '-'
+            });
+        });
+
+        if (Object.keys(subjects).length === 0) { alert("No matching records found."); return; }
+
+        doc.setFontSize(18);
+        doc.text("My Subject-wise Feedback", 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Teacher: ${name}`, 14, 26);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 32);
+        doc.text(`Filters: Degree=${fDegree} | Sem=${fSem}`, 14, 38);
+
+        let yPos = 45;
+
+        for (const sub of Object.keys(subjects)) {
+            if (yPos > 250) { doc.addPage(); yPos = 20; }
+
+            doc.setFillColor(240, 240, 240);
+            doc.rect(14, yPos, 182, 10, 'F');
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Subject: ${sub}`, 16, yPos + 7);
+            yPos += 15;
+
+            const tableBody = subjects[sub].map(f => [f.rating + "/5", f.comment, f.date]);
+
+            doc.autoTable({
+                startY: yPos,
+                head: [['Rtg', 'Comment', 'Date']],
+                body: tableBody,
+                margin: { left: 14 },
+                theme: 'grid',
+                columnStyles: {
+                    0: { cellWidth: 20 },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 30 }
+                },
+                styles: { fontSize: 9 }
+            });
+
+            yPos = doc.lastAutoTable.finalY + 10;
+        }
+
+        doc.save(`My_Subject_Wise_Feedback_${fDegree}_${fSem}.pdf`);
+
+    } catch (e) {
+        console.error(e);
+        alert("Error generating report");
+    } finally {
+        if (btn) btn.innerHTML = '<i class="ri-download-line"></i> Download PDF';
+    }
+}
+
+window.exportSubjectWiseFeedbackPDF = exportSubjectWiseFeedbackPDF;
+
 // Global Bind
 window.exportTeacherReportPDF = exportTeacherReportPDF;
 window.exportMyFeedbackXLSX = exportMyFeedbackXLSX;
+

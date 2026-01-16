@@ -921,13 +921,14 @@ async function exportDeptReportPDF() {
 
     let yPos = 50;
 
+
     // Filters require fetching fresh data to calculate accurate stats for report
     // If filters are 'all', we could use the stats on screen, but consistency is better.
     doc.text("Processing data...", 14, yPos);
 
     try {
         let query = db.collection('feedback').where('department', '==', currentDeptId);
-        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fDegree !== 'all') query = query.where('degree', '==', fDegree);
         if (fSem !== 'all') query = query.where('semester', '==', fSem);
 
         const snap = await query.get();
@@ -983,33 +984,7 @@ async function exportDeptReportPDF() {
             yPos += 15;
         }
 
-        // Add Charts if space permits. 
-        // Note: The on-screen charts are "All data". If we want filtered charts, we'd need to re-render them hidden or warn user.
-        // We will skip screenshots of dashboard charts if filters are on, to avoid misleading data.
-        if (fYear === 'all' && fSem === 'all') {
-            const charts = [
-                { id: 'deptSubjectChart', title: 'Subject Performance (Overall)' },
-                { id: 'deptParticipationChart', title: 'Participation Rate (Overall)' }
-            ];
-            for (let c of charts) {
-                const canvas = document.getElementById(c.id);
-                if (canvas) {
-                    if (yPos > 230) { doc.addPage(); yPos = 20; }
-                    try {
-                        const img = canvas.toDataURL('image/png');
-                        doc.addImage(img, 'PNG', 14, yPos, 180, 80);
-                        doc.text(c.title, 14, yPos - 5);
-                        yPos += 95;
-                    } catch (e) { }
-                }
-            }
-        } else {
-            doc.setFontSize(10);
-            doc.setTextColor(100);
-            doc.text("(Charts omitted for filtered reports)", 14, yPos);
-        }
-
-        doc.save(`Dept_Report_Y${fYear}_S${fSem}.pdf`);
+        doc.save(`Dept_Report_${fDegree}_${fSem}.pdf`);
 
     } catch (e) {
         console.error(e);
@@ -1023,13 +998,12 @@ async function exportTeacherRatingsXLSX() {
     if (btn) btn.innerText = "Exporting...";
 
     try {
-        const fYear = document.getElementById('exportFilterYear').value;
+        const fDegree = document.getElementById('exportFilterDegree').value;
         const fSem = document.getElementById('exportFilterSemester').value;
-        const note = (fYear === 'all' && fSem === 'all') ? "" : `Filtered Year:${fYear} Sem:${fSem}`;
 
         // Fetch
         let query = db.collection('feedback').where('department', '==', currentDeptId);
-        if (fYear !== 'all') query = query.where('year', '==', fYear);
+        if (fDegree !== 'all') query = query.where('degree', '==', fDegree);
         if (fSem !== 'all') query = query.where('semester', '==', fSem);
 
         const snap = await query.get();
@@ -1050,14 +1024,15 @@ async function exportTeacherRatingsXLSX() {
                 "Email": t ? t.email : '-',
                 "Average Rating": (teacherStats[tid].sum / teacherStats[tid].count).toFixed(2),
                 "Feedback Count": teacherStats[tid].count,
-                "Filter Context": note
+                "Filter Degree": fDegree,
+                "Filter Sem": fSem
             };
         });
 
         const ws = XLSX.utils.json_to_sheet(data);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Teacher Ratings");
-        XLSX.writeFile(wb, `Teacher_Ratings_${fYear}_${fSem}.xlsx`);
+        XLSX.writeFile(wb, `Teacher_Ratings_${fDegree}_${fSem}.xlsx`);
 
     } catch (e) {
         console.error(e);
@@ -1067,33 +1042,112 @@ async function exportTeacherRatingsXLSX() {
     }
 }
 
+async function exportSubjectWiseFeedbackPDF() {
+    const btn = event.target ? event.target.closest('button') : null;
+    if (btn) btn.innerText = "Generating...";
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const fDegree = document.getElementById('exportFilterDegree').value;
+    const fSem = document.getElementById('exportFilterSemester').value;
+
+    try {
+        let query = db.collection('feedback').where('department', '==', currentDeptId).orderBy('submitted_at', 'desc').limit(2000);
+
+        const snap = await query.get();
+        if (snap.empty) { alert("No data"); return; }
+
+        const teacherMap = {};
+
+        snap.forEach(d => {
+            const val = d.data();
+            if (fDegree !== 'all' && (val.degree || 'B.Tech') !== fDegree) return;
+            if (fSem !== 'all' && (val.semester || '1').toString() !== fSem) return;
+
+            const tid = val.teacher_id;
+            if (!teacherMap[tid]) {
+                const tObj = allMyTeachers.find(t => t.id === tid);
+                teacherMap[tid] = {
+                    name: tObj ? tObj.name : 'Unknown',
+                    subjects: {}
+                };
+            }
+
+            const sub = val.subject || 'General';
+            if (!teacherMap[tid].subjects[sub]) teacherMap[tid].subjects[sub] = [];
+
+            teacherMap[tid].subjects[sub].push({
+                rating: val.rating,
+                comment: val.comments || '',
+                date: val.submitted_at ? new Date(val.submitted_at.seconds * 1000).toLocaleDateString() : '-'
+            });
+        });
+
+        if (Object.keys(teacherMap).length === 0) { alert("No matching records found."); return; }
+
+        doc.setFontSize(18);
+        doc.text("Department Subject-wise Feedback", 14, 20);
+        doc.setFontSize(10);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 26);
+        doc.text(`Filters: Degree=${fDegree} | Sem=${fSem}`, 14, 32);
+
+        let yPos = 40;
+
+        for (const tid of Object.keys(teacherMap)) {
+            const tData = teacherMap[tid];
+
+            if (yPos > 250) { doc.addPage(); yPos = 20; }
+            doc.setFillColor(240, 240, 240);
+            doc.rect(14, yPos, 182, 10, 'F');
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${tData.name}`, 16, yPos + 7);
+            yPos += 15;
+
+            for (const sub of Object.keys(tData.subjects)) {
+                const feedList = tData.subjects[sub];
+                if (yPos > 260) { doc.addPage(); yPos = 20; }
+
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Subject: ${sub}`, 16, yPos);
+                yPos += 5;
+
+                const tableBody = feedList.map(f => [f.rating + "/5", f.comment, f.date]);
+
+                doc.autoTable({
+                    startY: yPos,
+                    head: [['Rtg', 'Comment', 'Date']],
+                    body: tableBody,
+                    margin: { left: 14 },
+                    theme: 'grid',
+                    columnStyles: {
+                        0: { cellWidth: 20 },
+                        1: { cellWidth: 'auto' },
+                        2: { cellWidth: 30 }
+                    },
+                    styles: { fontSize: 9 }
+                });
+
+                yPos = doc.lastAutoTable.finalY + 10;
+            }
+            yPos += 5;
+        }
+
+        doc.save(`Subject_Wise_Report_${fDegree}_${fSem}.pdf`);
+
+    } catch (e) {
+        console.error(e);
+        alert("Error generating report");
+    } finally {
+        if (btn) btn.innerHTML = '<i class="ri-download-line"></i> Download PDF';
+    }
+}
+
+window.exportSubjectWiseFeedbackPDF = exportSubjectWiseFeedbackPDF;
+
 // Global Bind
 window.exportDeptReportPDF = exportDeptReportPDF;
 window.exportTeacherRatingsXLSX = exportTeacherRatingsXLSX;
-
-function downloadDeptStudentSample() {
-    const csvContent = "data:text/csv;charset=utf-8," +
-        "student_id,name,degree,semester,password\n" +
-        "2024001,John Doe,B.Tech,1,password123";
-    const link = document.createElement("a");
-    link.href = encodeURI(csvContent);
-    link.download = "dept_student_sample.csv";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-function downloadDeptTeacherSample() {
-    const csvContent = "data:text/csv;charset=utf-8," +
-        "name,email,password\n" +
-        "Dr. Smith,smith@fms.local,password123";
-    const link = document.createElement("a");
-    link.href = encodeURI(csvContent);
-    link.download = "dept_teacher_sample.csv";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
 window.downloadDeptStudentSample = downloadDeptStudentSample;
 window.downloadDeptTeacherSample = downloadDeptTeacherSample;

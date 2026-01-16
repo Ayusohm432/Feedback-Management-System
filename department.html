@@ -565,7 +565,8 @@
                         <div class="card" style="flex: 1;">
                             <h3>Bulk Upload</h3>
                             <p style="font-size:0.9em;color:#666; margin-bottom:0.5rem;">CSV Cols:
-                                <code>name, email, password</code></p>
+                                <code>name, email, password</code>
+                            </p>
 
                             <div class="upload-zone" id="d-teacher-upload-zone">
                                 <div class="upload-content">
@@ -661,6 +662,26 @@
                             <button class="btn btn-outline" style="width:100%; justify-content:center;"
                                 onclick="exportTeacherRatingsXLSX()">
                                 <i class="ri-download-line"></i> Download Excel
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1rem;">
+                                <div style="background:#fdf4ff; padding:0.75rem; border-radius:50%; color:#d946ef;">
+                                    <i class="ri-file-list-3-line" style="font-size:1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin:0;">Subject-wise Feedback</h3>
+                                    <p style="font-size:0.85em; color:#666;">Detailed PDF Report</p>
+                                </div>
+                            </div>
+                            <p style="color:#666; font-size:0.9em; margin-bottom:1.5rem;">
+                                Generate a detailed report for all teachers in this department, grouped by subject.
+                                <br><br>
+                            </p>
+                            <button class="btn btn-outline" style="width:100%; justify-content:center;"
+                                onclick="exportSubjectWiseFeedbackPDF()">
+                                <i class="ri-download-line"></i> Download PDF
                             </button>
                         </div>
                     </div>
