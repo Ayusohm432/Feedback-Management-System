@@ -387,11 +387,29 @@ async function handleAddSingleStudent(e) {
 }
 
 async function handleBulkUpload() {
-    // Note: Bulk Upload validation is harder to enforce strictly line-by-line without logic update.
-    // For now, leaving as-is or basic checks? User asked "wherever there is entry of details".
-    // I will add a basic check inside the lopp if possible, but let's stick to single Forms first as explicitly requested.
     const file = document.getElementById('csvFile').files[0]; if (!file) return alert("Select file first");
-    Papa.parse(file, { header: true, complete: async function (results) { let count = 0; for (let row of results.data) { if (row.student_id && row.password) { try { const email = `${row.student_id}@student.fms.local`; const uid = await createUserInSecondaryApp(email, row.password); await db.collection('users').doc(uid).set({ uid: uid, name: row.name, email: email, role: 'student', status: 'approved', regNum: row.student_id, department: row.department, session: row.session, year: row.year || '1', semester: row.semester || '1', createdAt: new Date() }); count++; } catch (err) { } } } alert(`Successfully created ${count} users.`); } });
+    Papa.parse(file, {
+        header: true, complete: async function (results) {
+            let count = 0;
+            for (let row of results.data) {
+                if (row.student_id && row.password) {
+                    try {
+                        const email = `${row.student_id}@student.fms.local`;
+                        const uid = await createUserInSecondaryApp(email, row.password);
+                        await db.collection('users').doc(uid).set({
+                            uid: uid, name: row.name, email: email, role: 'student', status: 'approved',
+                            regNum: row.student_id, department: row.department, session: row.session,
+                            degree: row.degree || 'B.Tech', semester: row.semester || '1',
+                            year: Math.ceil((row.semester || 1) / 2).toString(),
+                            createdAt: new Date()
+                        });
+                        count++;
+                    } catch (err) { }
+                }
+            }
+            alert(`Successfully created ${count} users.`);
+        }
+    });
 }
 
 function downloadSample() { const csvContent = "data:text/csv;charset=utf-8," + "student_id,name,department,session,password\n2024001,John Doe,CSE,2023-27,password123"; const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = "student_full_import.csv"; document.body.appendChild(link); link.click(); }
@@ -1099,3 +1117,30 @@ async function exportDeptComparisonXLSX() {
 window.exportSystemSummaryPDF = exportSystemSummaryPDF;
 window.exportFeedbackDumpXLSX = exportFeedbackDumpXLSX;
 window.exportDeptComparisonXLSX = exportDeptComparisonXLSX;
+
+function downloadAdminStudentSample() {
+    const csvContent = "data:text/csv;charset=utf-8," +
+        "student_id,name,degree,semester,department,session,password\n" +
+        "2024001,John Doe,B.Tech,1,105,2023-27,password123";
+    const link = document.createElement("a");
+    link.href = encodeURI(csvContent);
+    link.download = "admin_student_sample.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function downloadAdminTeacherSample() {
+    const csvContent = "data:text/csv;charset=utf-8," +
+        "name,email,department,password\n" +
+        "Dr. Smith,smith@clg.edu,105,securepass";
+    const link = document.createElement("a");
+    link.href = encodeURI(csvContent);
+    link.download = "admin_teacher_sample.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+window.downloadAdminStudentSample = downloadAdminStudentSample;
+window.downloadAdminTeacherSample = downloadAdminTeacherSample;

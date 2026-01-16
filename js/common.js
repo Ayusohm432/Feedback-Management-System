@@ -81,3 +81,80 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+/**
+ * Initializes the drag-and-drop file upload UI.
+ * @param {string} inputId - ID of the hidden file input
+ * @param {string} zoneId - ID of the drop zone container
+ * @param {string} displayId - ID of the element to display file name
+ */
+function setupFileUploadUI(inputId, zoneId, displayId) {
+    const input = document.getElementById(inputId);
+    const zone = document.getElementById(zoneId);
+    const display = document.getElementById(displayId);
+
+    if (!input || !zone || !display) return;
+
+    // Trigger input click on zone click
+    zone.addEventListener('click', () => input.click());
+
+    // Drag events
+    ['dragenter', 'dragover'].forEach(eventName => {
+        zone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.add('active');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        zone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.remove('active');
+        }, false);
+    });
+
+    // Drop handler
+    zone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+            input.files = files;
+            updateDisplay(files[0].name);
+        }
+    }, false);
+
+    // Input change handler
+    input.addEventListener('change', () => {
+        if (input.files.length > 0) {
+            updateDisplay(input.files[0].name);
+        }
+    });
+
+    function updateDisplay(name) {
+        // Accessing 'display' from closure requires this function to be inside setupFileUploadUI
+        // But 'display' is defined in setupFileUploadUI scope.
+        // Re-fix the structure.
+        if (display) {
+            display.innerText = name;
+            display.style.color = 'var(--primary)';
+        }
+        const icon = zone ? zone.querySelector('.upload-icon i') : null;
+        if (icon) {
+            icon.className = 'ri-file-check-line';
+        }
+    }
+}
+
+/**
+ * Hashes a string using SHA-256 for privacy.
+ * @param {string} str - The string to hash (e.g., student UID).
+ * @returns {Promise<string>} - The hex string of the hash.
+ */
+async function hashStudentId(str) {
+    const msgBuffer = new TextEncoder().encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}

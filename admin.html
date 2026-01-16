@@ -541,11 +541,27 @@
                         </div>
                         <div class="card" style="flex: 1;">
                             <h3>Bulk Upload</h3>
-                            <p style="font-size:0.9em;color:#666;">Cols:
-                                <code>student_id, name, department, session, password</code>
+                            <p style="font-size:0.9em;color:#666; margin-bottom:0.5rem;">Cols:
+                                <code>student_id, name, degree, semester, department, session, password</code>
                             </p>
-                            <input type="file" id="csvFile" accept=".csv" style="margin:1rem 0;">
-                            <button class="btn btn-primary" onclick="handleBulkUpload()">Upload</button>
+
+                            <div class="upload-zone" id="student-upload-zone">
+                                <div class="upload-content">
+                                    <div class="upload-icon"><i class="ri-upload-cloud-2-line"></i></div>
+                                    <div>Drag & Drop CSV or <span
+                                            style="color:var(--primary); text-decoration:underline;">Browse</span></div>
+                                    <button class="btn btn-sm btn-outline"
+                                        onclick="event.stopPropagation(); downloadAdminStudentSample()"
+                                        style="margin-top:0.5rem; z-index: 2; position: relative;">
+                                        <i class="ri-download-line"></i> Download Format
+                                    </button>
+                                    <div class="file-name-display" id="student-file-display"></div>
+                                </div>
+                                <input type="file" id="csvFile" accept=".csv" class="upload-input">
+                            </div>
+
+                            <button class="btn btn-primary" style="width:100%;" onclick="handleBulkUpload()">Upload
+                                Students</button>
                         </div>
                     </div>
                     <div class="card">
@@ -612,10 +628,27 @@
                         </div>
                         <div class="card" style="flex: 1;">
                             <h3>Bulk Upload</h3>
-                            <p style="font-size:0.9em;color:#666;">Cols: <code>name, email, department, password</code>
+                            <p style="font-size:0.9em;color:#666; margin-bottom:0.5rem;">Cols:
+                                <code>name, email, department, password</code>
                             </p>
-                            <input type="file" id="teacherCsvFile" accept=".csv" style="margin:1rem 0;">
-                            <button class="btn btn-primary" onclick="handleBulkTeacherUpload()">Upload</button>
+
+                            <div class="upload-zone" id="teacher-upload-zone">
+                                <div class="upload-content">
+                                    <div class="upload-icon"><i class="ri-upload-cloud-2-line"></i></div>
+                                    <div>Drag & Drop CSV or <span
+                                            style="color:var(--primary); text-decoration:underline;">Browse</span></div>
+                                    <button class="btn btn-sm btn-outline"
+                                        onclick="event.stopPropagation(); downloadAdminTeacherSample()"
+                                        style="margin-top:0.5rem; z-index: 2; position: relative;">
+                                        <i class="ri-download-line"></i> Download Format
+                                    </button>
+                                    <div class="file-name-display" id="teacher-file-display"></div>
+                                </div>
+                                <input type="file" id="teacherCsvFile" accept=".csv" class="upload-input">
+                            </div>
+
+                            <button class="btn btn-primary" style="width:100%;"
+                                onclick="handleBulkTeacherUpload()">Upload Teachers</button>
                         </div>
                     </div>
                     <div class="card">
@@ -902,6 +935,10 @@
         </div>
     </div>
 
+    <script>
+        setupFileUploadUI('csvFile', 'student-upload-zone', 'student-file-display');
+        setupFileUploadUI('teacherCsvFile', 'teacher-upload-zone', 'teacher-file-display');
+    </script>
 </body>
 
 </html>

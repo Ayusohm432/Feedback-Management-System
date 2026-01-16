@@ -548,7 +548,8 @@ async function handleDeptBulkStudent() {
                         await db.collection('users').doc(uid).set({
                             uid, name: r.name, email, role: 'student', status: 'approved',
                             regNum: r.student_id, department: currentDeptId, session: session,
-                            year: r.year || '1', semester: r.semester || '1',
+                            degree: r.degree || 'B.Tech', semester: r.semester || '1',
+                            year: Math.ceil((r.semester || 1) / 2).toString(),
                             createdAt: new Date()
                         });
                         n++;
@@ -1069,3 +1070,30 @@ async function exportTeacherRatingsXLSX() {
 // Global Bind
 window.exportDeptReportPDF = exportDeptReportPDF;
 window.exportTeacherRatingsXLSX = exportTeacherRatingsXLSX;
+
+function downloadDeptStudentSample() {
+    const csvContent = "data:text/csv;charset=utf-8," +
+        "student_id,name,degree,semester,password\n" +
+        "2024001,John Doe,B.Tech,1,password123";
+    const link = document.createElement("a");
+    link.href = encodeURI(csvContent);
+    link.download = "dept_student_sample.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function downloadDeptTeacherSample() {
+    const csvContent = "data:text/csv;charset=utf-8," +
+        "name,email,password\n" +
+        "Dr. Smith,smith@fms.local,password123";
+    const link = document.createElement("a");
+    link.href = encodeURI(csvContent);
+    link.download = "dept_teacher_sample.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+window.downloadDeptStudentSample = downloadDeptStudentSample;
+window.downloadDeptTeacherSample = downloadDeptTeacherSample;

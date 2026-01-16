@@ -77,9 +77,10 @@ function switchTab(tab, el) {
     if (tab === 'open-reviews') loadOpenReviews();
 }
 
-function loadStats() {
+async function loadStats() {
     const uid = firebase.auth().currentUser.uid;
-    db.collection('feedback').where('student_id', '==', uid).get().then(snap => {
+    const hashedUid = await hashStudentId(uid);
+    db.collection('feedback').where('student_id', 'in', [uid, hashedUid]).get().then(snap => {
         document.getElementById('stat-given').innerText = snap.size;
     });
 }
@@ -340,8 +341,11 @@ async function submitFeedback(e) {
         return alert("Duplicate review: You have already submitted feedback for this subject.");
     }
 
+    const uid = firebase.auth().currentUser.uid;
+    const hashedUid = await hashStudentId(uid);
+
     const data = {
-        student_id: firebase.auth().currentUser.uid,
+        student_id: hashedUid,
         teacher_id: teacherId,
         subject: subject,
         rating: parseInt(rating),
@@ -366,12 +370,14 @@ async function submitFeedback(e) {
     } catch (err) { console.error(err); alert("Error submitting feedback."); }
 }
 
-function loadHistory() {
+async function loadHistory() {
     const uid = firebase.auth().currentUser.uid;
+    const hashedUid = await hashStudentId(uid);
+
     const container = document.getElementById('history-container');
     container.innerHTML = '<div style="text-align:center; padding:2rem; color:#666;">Loading history...</div>';
 
-    db.collection('feedback').where('student_id', '==', uid).onSnapshot(snap => {
+    db.collection('feedback').where('student_id', 'in', [uid, hashedUid]).onSnapshot(snap => {
         submittedSessions.clear();
 
         if (snap.empty) {
