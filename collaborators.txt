@@ -10,3 +10,4 @@
 5. Separate Database for each
 6. Add session filter everywhere
 7. Make the website responsive
+8. Add option to change password
