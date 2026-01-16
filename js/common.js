@@ -133,12 +133,28 @@ function setupFileUploadUI(inputId, zoneId, displayId) {
     });
 
     function updateDisplay(name) {
-        display.innerText = name;
-        display.style.color = 'var(--primary)';
-        // Change icon check?
-        const icon = zone.querySelector('.upload-icon i');
+        // Accessing 'display' from closure requires this function to be inside setupFileUploadUI
+        // But 'display' is defined in setupFileUploadUI scope.
+        // Re-fix the structure.
+        if (display) {
+            display.innerText = name;
+            display.style.color = 'var(--primary)';
+        }
+        const icon = zone ? zone.querySelector('.upload-icon i') : null;
         if (icon) {
             icon.className = 'ri-file-check-line';
         }
     }
+}
+
+/**
+ * Hashes a string using SHA-256 for privacy.
+ * @param {string} str - The string to hash (e.g., student UID).
+ * @returns {Promise<string>} - The hex string of the hash.
+ */
+async function hashStudentId(str) {
+    const msgBuffer = new TextEncoder().encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
