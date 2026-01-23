@@ -57,6 +57,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
     // State
     let currentLang = 'en';
@@ -206,7 +207,15 @@
         msgDiv.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message');
         if (isLoading) msgDiv.id = 'loading-' + Date.now();
 
-        let contentHtml = `<div class="message-content">${text}</div>`;
+        // Use marked to parse text if it's from bot (or even user, but bot is most important)
+        // Note: marked.parse returns a promise if async is on, but by default it is synchronous.
+        // We wrap in try-catch just in case or if marked isn't loaded yet (though it should be).
+        let parsedText = text;
+        if (window.marked && sender === 'bot' && !isLoading) {
+            parsedText = marked.parse(text);
+        }
+
+        let contentHtml = `<div class="message-content">${parsedText}</div>`;
 
         if (audioUrl) {
             const btnId = 'audio-btn-' + Date.now();
