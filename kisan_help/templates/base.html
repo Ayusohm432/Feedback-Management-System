@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kisan Help Website</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header>
+        <center><h1>🌾 Kisan Help Website 🌾</h1></center>
+    </header>
+    
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer>
+        <center><p>&copy; 2026 Kisan Help. Jai Jawan Jai Kisan!</p></center>
+    </footer>
+
+    {% block scripts %}
+    {% endblock %}
+</body>
+</html>

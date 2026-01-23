@@ -1,0 +1,315 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="chat-container">
+    <!-- Chat Header -->
+    <div class="chat-header">
+        <div class="header-info">
+            <!-- Use uploaded avatar -->
+            <img src="{% static 'images/avatar.png' %}" alt="Kisan Avatar" class="bot-avatar-img">
+            <div>
+                <h3>Kisan Sahayak (किसान सहायक)</h3>
+            </div>
+        </div>
+        <div class="header-actions">
+            <!-- Language Toggle in Header or Input? Plan said Input, but Header is also good. Let's stick to plan: Left of Input. -->
+        </div>
+    </div>
+
+    <!-- Chat Messages Area -->
+    <div id="chat-box" class="chat-box">
+        <!-- Welcome Message -->
+        <div class="message bot-message">
+            <div class="message-content">
+                Namaste! I am Kisan Sahayak. How can I help you regarding crops, weather, or fertilizers?
+                <br><br>
+                नमस्ते! मैं किसान सहायक हूं। मैं फसल, मौसम या खाद के बारे में आपकी कैसे मदद कर सकता हूं?
+            </div>
+            <span class="message-time" id="init-time"></span>
+        </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+        <button class="btn-lang" id="lang-btn" onclick="toggleLangMenu()" title="Language">
+            🌐 <span id="current-lang-display">EN</span>
+        </button>
+        <!-- Language Menu (Hidden by default) -->
+        <div id="lang-menu" class="lang-menu hidden">
+            <div onclick="setLanguage('en')">English</div>
+            <div onclick="setLanguage('hi')">Hindi (हिंदी)</div>
+            <div onclick="setLanguage('bho')">Bhojpuri (भोजपुरी)</div>
+        </div>
+
+        <div class="input-wrapper">
+            <input type="text" id="query-text" placeholder="Type a message..." oninput="checkInput()">
+        </div>
+
+        <button class="btn-action" id="action-btn" onclick="handleAction()">
+            🎤
+        </button>
+    </div>
+</div>
+
+<!-- Hidden Audio Player -->
+<audio id="global-audio-player" hidden controls></audio>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // State
+    let currentLang = 'en';
+    let isRecording = false;
+    let recognition;
+    let currentlyPlayingBtnId = null;
+
+    // Initialize Time
+    document.getElementById('init-time').innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Icons (SVGs)
+    const ICON_MIC = `<svg viewBox="0 0 24 24" width="24" height="24" class=""><path fill="currentColor" d="M11.999 14.942c2.001 0 3.531-1.53 3.531-3.531V4.35c0-2.001-1.53-3.531-3.531-3.531S8.469 2.35 8.469 4.35v7.061c0 2.001 1.53 3.531 3.53 3.531zm4.606-3.531c0-2.546-2.06-4.606-4.606-4.606s-4.606 2.06-4.606 4.606c0 2.546 2.06 4.606 4.606 4.606s4.606-2.06 4.606-4.606zM12 17.764c-2.941 0-5.467-2.016-6.195-4.733-.122-.455-.66-.64-1.114-.41-.454.23-.64.767-.409 1.222.95 3.328 4.026 5.808 7.718 5.808s6.768-2.48 7.718-5.808c.231-.455.045-.992-.41-1.222-.454-.23-.991-.045-1.113.41-.728 2.717-3.254 4.733-6.195 4.733zM7.7 18.006c0 .41-.336.75-.75.75H5.45c-.414 0-.75.336-.75.75v1.25H12v-1.25c0-.42-.336-.75-.75-.75H9.7v-2.006c0-.41-.336-.75-.75-.75H7.7z"></path><path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"></path><path fill="currentColor" d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"></path></svg>`;
+    const ICON_SEND = `<svg viewBox="0 0 24 24" width="24" height="24" class=""><path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>`;
+    const ICON_STOP_RECORD = `<svg viewBox="0 0 24 24" width="24" height="24" class=""><path fill="currentColor" d="M6 6h12v12H6z"></path></svg>`;
+
+    // Audio Icons
+    const ICON_PLAY = `<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>`;
+    const ICON_PAUSE = `<svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+
+    function toggleLangMenu() {
+        document.getElementById('lang-menu').classList.toggle('hidden');
+    }
+
+    function setLanguage(lang) {
+        currentLang = lang;
+        const display = lang === 'en' ? 'EN' : (lang === 'hi' ? 'HI' : 'BHO');
+        document.getElementById('current-lang-display').innerText = display;
+        document.getElementById('lang-menu').classList.add('hidden');
+
+        let placeholder = "Type a message...";
+        if (lang === 'hi') placeholder = "संदेश टाइप करें...";
+        if (lang === 'bho') placeholder = "संदेस लिखीं...";
+        document.getElementById('query-text').placeholder = placeholder;
+    }
+
+    function checkInput() {
+        const text = document.getElementById('query-text').value.trim();
+        const btn = document.getElementById('action-btn');
+        // If recording, don't change icon based on text input
+        if (isRecording) return;
+
+        if (text.length > 0) {
+            btn.innerHTML = ICON_SEND;
+            btn.classList.add('send-mode');
+        } else {
+            btn.innerHTML = ICON_MIC;
+            btn.classList.remove('send-mode');
+        }
+    }
+
+    function handleAction() {
+        const text = document.getElementById('query-text').value.trim();
+        if (text.length > 0) {
+            sendMessage(text);
+        } else {
+            toggleDictation();
+        }
+    }
+
+    function toggleDictation() {
+        if (!window.hasOwnProperty('webkitSpeechRecognition')) {
+            alert("Voice recognition is not supported in this browser. Please use Chrome.");
+            return;
+        }
+
+        if (isRecording) {
+            recognition.stop();
+            return;
+        }
+
+        recognition = new webkitSpeechRecognition();
+        recognition.lang = currentLang === 'en' ? 'en-IN' : 'hi-IN'; // Using Hindi for Bhojpuri as well
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onstart = function () {
+            isRecording = true;
+            document.getElementById('action-btn').innerHTML = ICON_STOP_RECORD;
+            document.getElementById('action-btn').classList.add('recording');
+        };
+
+        recognition.onresult = function (event) {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById('query-text').value = transcript;
+            isRecording = false; // Reset state before checkInput
+            checkInput();
+            // Optional: Auto-send
+            // sendMessage(transcript);
+        };
+
+        recognition.onerror = function (event) {
+            console.error(event.error);
+            stopRecordingUI();
+        };
+
+        recognition.onend = function () {
+            stopRecordingUI();
+        };
+
+        recognition.start();
+    }
+
+    function stopRecordingUI() {
+        isRecording = false;
+        document.getElementById('action-btn').classList.remove('recording');
+        checkInput(); // Will revert to mic or send based on text
+    }
+
+    function sendMessage(text) {
+        if (!text) return;
+
+        // User Message Bubble
+        addMessage(text, 'user');
+        document.getElementById('query-text').value = '';
+        checkInput();
+
+        // Loading Bubble
+        const loadingId = addMessage('...', 'bot', true);
+
+        // API Call
+        fetch('/process_query/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `query=${encodeURIComponent(text)}&language=${currentLang}`
+        })
+            .then(response => response.json())
+            .then(data => {
+                removeMessage(loadingId);
+                if (data.error) {
+                    addMessage("Error: " + data.error, 'bot');
+                } else {
+                    addMessage(data.answer, 'bot', false, data.audio_url);
+                }
+            })
+            .catch(error => {
+                removeMessage(loadingId);
+                addMessage("Something went wrong. Please try again.", 'bot');
+                console.error(error);
+            });
+    }
+
+    function addMessage(text, sender, isLoading = false, audioUrl = null) {
+        const chatBox = document.getElementById('chat-box');
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message', sender === 'user' ? 'user-message' : 'bot-message');
+        if (isLoading) msgDiv.id = 'loading-' + Date.now();
+
+        let contentHtml = `<div class="message-content">${text}</div>`;
+
+        if (audioUrl) {
+            const btnId = 'audio-btn-' + Date.now();
+            contentHtml += `
+                <button id="${btnId}" class="btn-play-bubble" onclick="toggleAudio('${audioUrl}', '${btnId}')">
+                    ${ICON_PLAY}
+                </button>
+            `;
+        }
+
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        contentHtml += `<span class="message-time">${time}</span>`;
+
+        msgDiv.innerHTML = contentHtml;
+        chatBox.appendChild(msgDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        return msgDiv.id;
+    }
+
+    function removeMessage(id) {
+        if (!id) return;
+        const el = document.getElementById(id);
+        if (el) el.remove();
+    }
+
+    function toggleAudio(url, btnId) {
+        const player = document.getElementById('global-audio-player');
+        const btn = document.getElementById(btnId);
+
+        // Check if this button is already playing
+        if (currentlyPlayingBtnId === btnId && !player.paused) {
+            player.pause();
+            btn.innerHTML = ICON_PLAY;
+            currentlyPlayingBtnId = null;
+        } else {
+            // Stop logic: If another audio is playing, reset its icon
+            if (currentlyPlayingBtnId && currentlyPlayingBtnId !== btnId) {
+                const prevBtn = document.getElementById(currentlyPlayingBtnId);
+                if (prevBtn) prevBtn.innerHTML = ICON_PLAY;
+            }
+
+            // Play new audio or resume
+            // Note: If we switch URL, we reload. If same URL and paused, just play.
+            if (player.src !== new URL(url, document.baseURI).href) {
+                player.src = url;
+            }
+
+            player.play();
+            btn.innerHTML = ICON_PAUSE;
+            currentlyPlayingBtnId = btnId;
+        }
+    }
+
+    // Global Player Events to sync UI
+    const globalPlayer = document.getElementById('global-audio-player');
+
+    globalPlayer.onended = function () {
+        if (currentlyPlayingBtnId) {
+            const btn = document.getElementById(currentlyPlayingBtnId);
+            if (btn) btn.innerHTML = ICON_PLAY;
+            currentlyPlayingBtnId = null;
+        }
+    };
+
+    globalPlayer.onpause = function () {
+        // Only handle manual pause (not triggered by toggleAudio switch) if needed
+        // But toggleAudio handles the icon switch.
+        // This failsafe ensures if something else pauses it (e.g. system), UI updates
+        if (currentlyPlayingBtnId) {
+            const btn = document.getElementById(currentlyPlayingBtnId);
+            if (btn) btn.innerHTML = ICON_PLAY;
+            // We don't set currentlyPlayingBtnId to null here immediately because 
+            // the user might have just hit pause and wants to resume. 
+            // However, for strictly play/pause icon logic, we want it to show Play.
+        }
+    };
+
+    // We override onplay to ensure icon is Pause
+    globalPlayer.onplay = function () {
+        if (currentlyPlayingBtnId) {
+            const btn = document.getElementById(currentlyPlayingBtnId);
+            if (btn) btn.innerHTML = ICON_PAUSE;
+        }
+    };
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function (event) {
+        const menu = document.getElementById('lang-menu');
+        const btn = document.getElementById('lang-btn');
+        if (!menu.classList.contains('hidden') && !menu.contains(event.target) && !btn.contains(event.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+
+    // Enter key to send
+    document.getElementById('query-text').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            handleAction();
+        }
+    });
+
+    // Initial check to set Mic icon
+    checkInput();
+</script>
+{% endblock %}

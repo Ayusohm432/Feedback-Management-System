@@ -1,0 +1,8 @@
+django
+gTTS
+scikit-learn
+numpy
+joblib
+google-generativeai
+python-dotenv
+openai
